@@ -482,7 +482,7 @@ export function DashboardClient({ email }: { email: string }) {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_300px_340px]">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_440px_340px]">
           <section className="min-w-0">
             {(level === "campaign" ? loading : funnelFirstLoad) ? (
               <SkeletonGrid />

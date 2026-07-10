@@ -19,8 +19,8 @@ export function FunnelChart({ segments }: { segments: FunnelSegment[] }) {
   };
 
   return (
-    <div className="rounded-2xl border border-line bg-surface p-4">
-      <div className="flex flex-col gap-1">
+    <div className="flex h-[calc(100vh-7rem)] flex-col rounded-2xl border border-line bg-surface p-4">
+      <div className="flex flex-1 flex-col gap-1">
         {segments.map((s, i) => {
           const wt = widthAt(i);
           const wb = widthAt(i + 1);
@@ -28,7 +28,7 @@ export function FunnelChart({ segments }: { segments: FunnelSegment[] }) {
             (100 + wb) / 2
           }% 100%, ${(100 - wb) / 2}% 100%)`;
           return (
-            <div key={i} className="relative h-[120px]">
+            <div key={i} className="relative min-h-0 flex-1">
               <div
                 className="absolute inset-0"
                 style={{ clipPath: clip, background: color(i) }}
