@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -440,9 +440,17 @@ export function DashboardClient({ email }: { email: string }) {
               <SkeletonGrid />
             ) : (
               <>
-                {/* Blocos de KPI (mudam conforme o nível) */}
+                {/* VENDAS */}
+                <SectionTitle first>Vendas</SectionTitle>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   <KpiCard label="Vendas aprovadas" value={num(view.sales)} hint={`via Green · ${brl(view.revenue)}`} icon={<CartIcon />} accent />
+                  <KpiCard label="Taxa de conversão" value={pct(view.conv)} hint="Vendas / visualizações da página" icon={<PercentIcon />} />
+                  <KpiCard label="Initiate Checkout" value={num(view.initiate_checkout)} hint="Checkouts iniciados" icon={<CartIcon />} />
+                </div>
+
+                {/* FINANCEIRO */}
+                <SectionTitle>Financeiro</SectionTitle>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   <KpiCard label="Conversão bruta" value={brl(conv.gross)} hint="Valor bruto das vendas" icon={<CashIcon />} />
                   <KpiCard
                     label="Conversão líquida"
@@ -453,17 +461,25 @@ export function DashboardClient({ email }: { email: string }) {
                     icon={<CashIcon />}
                   />
                   <KpiCard label="ROAS" value={`${view.roas.toFixed(2)}x`} hint={`Receita ${brl(view.revenue)}`} icon={<TargetIcon />} />
+                  <KpiCard label="CPA" value={brl(view.cpa)} hint="Custo por venda aprovada" icon={<UserIcon />} />
+                </div>
+
+                {/* INVESTIMENTO */}
+                <SectionTitle>Investimento</SectionTitle>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   <KpiCard label="Valor gasto" value={brl(view.spend)} hint="Investimento total no período" icon={<WalletIcon />} />
                   <KpiCard label="Gasto c/ imposto Meta" value={brl(conv.spendWithTax)} hint={`+ 12,15% de imposto (${brl(conv.metaTax)})`} icon={<WalletIcon />} />
-                  <KpiCard label="CPA" value={brl(view.cpa)} hint="Custo por venda aprovada" icon={<UserIcon />} />
                   <KpiCard label="CPC (link)" value={brl(view.cpc)} hint="Custo por clique no link" icon={<ClickIcon />} />
                   <KpiCard label="CPM" value={brl(view.cpm)} hint="Custo por mil impressões" icon={<EyeMetricIcon />} />
+                </div>
+
+                {/* TRÁFEGO */}
+                <SectionTitle>Tráfego</SectionTitle>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  <KpiCard label="Impressões" value={num(view.impressions)} hint="Total de exibições" icon={<EyeMetricIcon />} />
                   <KpiCard label="CTR" value={pct(view.ctr)} hint="Cliques ÷ impressões" icon={<PercentIcon />} />
-                  <KpiCard label="Initiate Checkout" value={num(view.initiate_checkout)} hint="Checkouts iniciados" icon={<CartIcon />} />
                   <KpiCard label="Cliques no link" value={num(view.link_clicks)} hint={`${num(view.clicks)} cliques totais`} icon={<ClickIcon />} />
                   <KpiCard label="Visualizações da página" value={num(view.lpv)} hint="Landing page views" icon={<PageIcon />} />
-                  <KpiCard label="Impressões" value={num(view.impressions)} hint="Total de exibições" icon={<EyeMetricIcon />} />
-                  <KpiCard label="Taxa de conversão" value={pct(view.conv)} hint="Vendas / visualizações da página" icon={<PercentIcon />} />
                 </div>
 
                 <div className="mt-6">
@@ -499,6 +515,23 @@ export function DashboardClient({ email }: { email: string }) {
           </aside>
         </div>
       </main>
+    </div>
+  );
+}
+
+function SectionTitle({
+  children,
+  first,
+}: {
+  children: ReactNode;
+  first?: boolean;
+}) {
+  return (
+    <div className={`mb-3 flex items-center gap-2 ${first ? "" : "mt-7"}`}>
+      <span className="h-4 w-1 rounded-full bg-brand" />
+      <h2 className="text-xs font-bold uppercase tracking-wider text-muted">
+        {children}
+      </h2>
     </div>
   );
 }
