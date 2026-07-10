@@ -1,0 +1,11 @@
+node_modules
+.next
+.env.local
+.DS_Store
+*.log
+supabase/.temp
+
+tsconfig.tsbuildinfo
+
+# schema/seed/edge functions ficam fora do repo
+supabase/
