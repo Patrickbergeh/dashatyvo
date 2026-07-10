@@ -13,7 +13,7 @@ export function ThemeToggle() {
       className="relative flex h-9 w-16 items-center rounded-full border border-line bg-surface px-1 transition-colors"
     >
       <span
-        className={`flex h-7 w-7 items-center justify-center rounded-full bg-brand text-white shadow-sm transition-transform duration-300 ${
+        className={`flex h-7 w-7 items-center justify-center rounded-full bg-brand text-black shadow-sm transition-transform duration-300 ${
           isDark ? "translate-x-7" : "translate-x-0"
         }`}
       >

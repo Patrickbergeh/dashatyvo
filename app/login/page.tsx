@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { logActivity } from "@/lib/activity";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function LoginPage() {
@@ -25,7 +26,10 @@ export default function LoginPage() {
       password,
     });
     if (error) setError(traduz(error.message));
-    else router.push("/dashboard");
+    else {
+      await logActivity("Fez login");
+      router.push("/dashboard");
+    }
 
     setLoading(false);
   }
@@ -84,7 +88,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="brand-gradient w-full rounded-xl py-3 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+            className="bg-brand w-full rounded-xl py-3 text-sm font-bold text-black transition-opacity hover:opacity-90 disabled:opacity-60"
           >
             {loading ? "Carregando..." : "Entrar"}
           </button>

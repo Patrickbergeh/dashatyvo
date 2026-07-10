@@ -112,9 +112,9 @@ export function DateRangePicker({
               onClick={() => pick(day)}
               className={`relative h-9 rounded-lg text-xs font-bold transition-colors ${
                 selected
-                  ? "bg-brand text-white"
+                  ? "bg-brand text-black"
                   : inRange
-                  ? "bg-brand-soft text-brand"
+                  ? "bg-brand/30 text-fg"
                   : "text-fg hover:bg-surface"
               } ${day === todayIso && !selected ? "ring-1 ring-brand" : ""}`}
             >
@@ -134,7 +134,7 @@ export function DateRangePicker({
         <button
           onClick={() => onApply({ start, end: end ?? start })}
           disabled={!start}
-          className="flex-1 rounded-xl bg-brand py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="flex-1 rounded-xl bg-brand py-2.5 text-sm font-bold text-black transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           Aplicar
         </button>

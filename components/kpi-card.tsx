@@ -23,14 +23,14 @@ export function KpiCard({
     <div
       className={`rounded-2xl p-5 transition-colors ${
         accent
-          ? "brand-gradient text-black"
+          ? "bg-brand text-black"
           : "border border-line bg-surface"
       }`}
     >
       <div className="flex items-center justify-between">
         <span
           className={`flex h-9 w-9 items-center justify-center rounded-xl ${
-            accent ? "bg-black/10 text-black" : "bg-brand-soft text-brand"
+            accent ? "bg-black/10 text-black" : "bg-brand text-black"
           }`}
         >
           {icon}

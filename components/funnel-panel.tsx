@@ -12,6 +12,7 @@ export type FunnelEntity = {
   image_url: string | null;
   spend: number;
   impressions: number;
+  reach: number;
   clicks: number;
   link_clicks: number;
   lpv: number;

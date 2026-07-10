@@ -89,6 +89,7 @@ export async function GET(
           is_tracked: r.is_tracked,
           spend: 0,
           impressions: 0,
+          reach: 0,
           clicks: 0,
           link_clicks: 0,
           lpv: 0,
@@ -102,7 +103,7 @@ export async function GET(
 
     // insights agregados por adset
     const insRes = await fetch(
-      `${GRAPH}/${acct}/insights?level=adset&${tr}&fields=adset_id,spend,impressions,clicks,actions,action_values&limit=500&access_token=${encodeURIComponent(token)}`
+      `${GRAPH}/${acct}/insights?level=adset&${tr}&fields=adset_id,spend,impressions,reach,clicks,actions,action_values&limit=500&access_token=${encodeURIComponent(token)}`
     );
     const ins = await insRes.json();
     const byId = new Map<string, any>();
@@ -177,6 +178,7 @@ export async function GET(
           is_tracked: r.is_tracked,
           spend: 0,
           impressions: 0,
+          reach: 0,
           clicks: 0,
           link_clicks: 0,
           lpv: 0,
@@ -191,7 +193,7 @@ export async function GET(
     }
 
     const insRes = await fetch(
-      `${GRAPH}/${acct}/insights?level=ad&${tr}&fields=ad_id,spend,impressions,clicks,actions,action_values&limit=500&access_token=${encodeURIComponent(token)}`
+      `${GRAPH}/${acct}/insights?level=ad&${tr}&fields=ad_id,spend,impressions,reach,clicks,actions,action_values&limit=500&access_token=${encodeURIComponent(token)}`
     );
     const ins = await insRes.json();
     const byId = new Map<string, any>();
@@ -269,6 +271,7 @@ function metrics(m: any) {
   return {
     spend: Number(m.spend ?? 0),
     impressions: Number(m.impressions ?? 0),
+    reach: Number(m.reach ?? 0),
     clicks: Number(m.clicks ?? 0),
     link_clicks: av(m.actions, "link_click"),
     lpv: av(m.actions, "landing_page_view"),

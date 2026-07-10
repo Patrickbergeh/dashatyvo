@@ -69,7 +69,7 @@ export async function POST(req: Request) {
   const allRows: any[] = [];
   for (const integ of integs) {
     const fields =
-      "campaign_id,campaign_name,spend,impressions,clicks,actions,action_values";
+      "campaign_id,campaign_name,spend,impressions,reach,clicks,actions,action_values";
     const url =
       `${GRAPH}/${integ.ad_account_id}/insights` +
       `?level=campaign&time_increment=1&time_range=${timeRange}` +
@@ -89,6 +89,7 @@ export async function POST(req: Request) {
         date: r.date_start,
         spend: Number(r.spend ?? 0),
         impressions: Number(r.impressions ?? 0),
+        reach: Number(r.reach ?? 0),
         clicks: Number(r.clicks ?? 0),
         link_clicks: actionValue(r.actions, "link_click"),
         landing_page_views: actionValue(r.actions, "landing_page_view"),

@@ -1,13 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { logActivity } from "@/lib/activity";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { KpiCard } from "@/components/kpi-card";
 import { SpendChart, type ChartPoint } from "@/components/spend-chart";
 import { CampaignsPanel } from "@/components/campaigns-panel";
 import { FunnelPanel, type FunnelEntity } from "@/components/funnel-panel";
+import { FunnelChart, type FunnelSegment } from "@/components/funnel-chart";
 import { CreativeThumb } from "@/components/creative-thumb";
 import { DateRangePicker, type Range } from "@/components/date-range-picker";
 
@@ -25,6 +28,7 @@ type Metric = {
   spend: number;
   clicks: number;
   impressions: number;
+  reach: number;
   link_clicks: number;
   landing_page_views: number;
   initiate_checkout: number;
@@ -126,7 +130,7 @@ export function DashboardClient({ email }: { email: string }) {
     const { data } = await supabase
       .from("ad_metrics")
       .select(
-        "date, campaign_id, campaign_name, spend, clicks, impressions, link_clicks, landing_page_views, initiate_checkout, sales, revenue"
+        "date, campaign_id, campaign_name, spend, clicks, impressions, reach, link_clicks, landing_page_views, initiate_checkout, sales, revenue"
       )
       .order("date", { ascending: true });
 
@@ -184,11 +188,12 @@ export function DashboardClient({ email }: { email: string }) {
         spend: a.spend + Number(m.spend),
         clicks: a.clicks + Number(m.clicks),
         impressions: a.impressions + Number(m.impressions),
+        reach: a.reach + Number(m.reach ?? 0),
         link_clicks: a.link_clicks + Number(m.link_clicks ?? 0),
         lpv: a.lpv + Number(m.landing_page_views ?? 0),
         initiate_checkout: a.initiate_checkout + Number(m.initiate_checkout ?? 0),
       }),
-      { spend: 0, clicks: 0, impressions: 0, link_clicks: 0, lpv: 0, initiate_checkout: 0 }
+      { spend: 0, clicks: 0, impressions: 0, reach: 0, link_clicks: 0, lpv: 0, initiate_checkout: 0 }
     );
     // vendas e receita vêm da Green (vendas aprovadas)
     const sales = green.count;
@@ -202,6 +207,7 @@ export function DashboardClient({ email }: { email: string }) {
       cpa: sales > 0 ? t.spend / sales : 0,
       cpm: t.impressions > 0 ? (t.spend / t.impressions) * 1000 : 0,
       ctr: t.impressions > 0 ? (t.clicks / t.impressions) * 100 : 0,
+      frequency: t.reach > 0 ? t.impressions / t.reach : 0,
       conv: t.lpv > 0 ? (sales / t.lpv) * 100 : 0,
     };
   }, [filtered, green]);
@@ -259,6 +265,8 @@ export function DashboardClient({ email }: { email: string }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ entity_id: e.entity_id, is_tracked: next }),
     });
+    const tipo = lvl === "adset" ? "conjunto" : "anúncio";
+    logActivity(`${next ? "Ativou" : "Desativou"} ${tipo} "${e.name}"`);
     // desativar um conjunto muda os anúncios -> revalida o cache de anúncios
     if (lvl === "adset") setFunnelFetched((prev) => ({ ...prev, ad: false }));
   }
@@ -273,11 +281,12 @@ export function DashboardClient({ email }: { email: string }) {
           spend: a.spend + Number(e.spend),
           clicks: a.clicks + Number(e.clicks),
           impressions: a.impressions + Number(e.impressions),
+          reach: a.reach + Number(e.reach),
           link_clicks: a.link_clicks + Number(e.link_clicks),
           lpv: a.lpv + Number(e.lpv),
           initiate_checkout: a.initiate_checkout + Number(e.initiate_checkout),
         }),
-        { spend: 0, clicks: 0, impressions: 0, link_clicks: 0, lpv: 0, initiate_checkout: 0 }
+        { spend: 0, clicks: 0, impressions: 0, reach: 0, link_clicks: 0, lpv: 0, initiate_checkout: 0 }
       );
     const sales = green.count;
     const revenue = green.revenue;
@@ -290,6 +299,7 @@ export function DashboardClient({ email }: { email: string }) {
       cpa: sales > 0 ? t.spend / sales : 0,
       cpm: t.impressions > 0 ? (t.spend / t.impressions) * 1000 : 0,
       ctr: t.impressions > 0 ? (t.clicks / t.impressions) * 100 : 0,
+      frequency: t.reach > 0 ? t.impressions / t.reach : 0,
       conv: t.lpv > 0 ? (sales / t.lpv) * 100 : 0,
     };
   }, [level, k, funnel, green]);
@@ -307,6 +317,23 @@ export function DashboardClient({ email }: { email: string }) {
       spendWithTax,
     };
   }, [green, view.spend]);
+
+  // Funil (topo -> base) com as métricas do nível/período atual
+  const funnelSegments: FunnelSegment[] = useMemo(
+    () => [
+      { label: "Impressões", value: num(view.impressions) },
+      { label: "Alcance", value: num(view.reach) },
+      { label: "Frequência", value: view.frequency.toFixed(2) },
+      { label: "CTR", value: pct(view.ctr) },
+      { label: "Cliques no link", value: num(view.link_clicks) },
+      { label: "Visualizações da página", value: num(view.lpv) },
+      { label: "Initiate checkout", value: num(view.initiate_checkout) },
+      { label: "Compras", value: num(view.sales) },
+      { label: "Custo por compra", value: brl(view.cpa) },
+      { label: "ROAS", value: `${view.roas.toFixed(2)}x` },
+    ],
+    [view]
+  );
 
   const chart: ChartPoint[] = useMemo(() => {
     const byDay = new Map<string, ChartPoint>();
@@ -328,6 +355,7 @@ export function DashboardClient({ email }: { email: string }) {
   }, [filtered, green]);
 
   async function logout() {
+    await logActivity("Saiu da plataforma");
     await supabase.auth.signOut();
     router.push("/login");
   }
@@ -352,7 +380,7 @@ export function DashboardClient({ email }: { email: string }) {
                 }}
                 className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition-colors ${
                   preset === key
-                    ? "bg-brand text-white"
+                    ? "bg-brand text-black"
                     : "text-muted hover:text-fg"
                 }`}
               >
@@ -363,7 +391,7 @@ export function DashboardClient({ email }: { email: string }) {
               onClick={() => setShowPicker((s) => !s)}
               className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition-colors ${
                 preset === "custom"
-                  ? "bg-brand text-white"
+                  ? "bg-brand text-black"
                   : "text-muted hover:text-fg"
               }`}
             >
@@ -391,7 +419,7 @@ export function DashboardClient({ email }: { email: string }) {
           <div className="flex items-center gap-3">
             <ThemeToggle />
             <div className="flex items-center gap-2 rounded-full border border-line bg-surface py-1 pl-1 pr-3">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-xs font-bold text-white">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-xs font-bold text-black">
                 {email.charAt(0).toUpperCase()}
               </span>
               <span className="hidden text-xs font-bold text-fg sm:block">
@@ -413,28 +441,48 @@ export function DashboardClient({ email }: { email: string }) {
       </header>
 
       <main className="w-full px-6 py-7">
-        {/* Funil: Campanha › Conjunto › Anúncio */}
-        <div className="mb-6 flex items-center gap-1 rounded-full border border-line bg-surface p-1 text-sm w-fit">
-          {FUNNEL.map(([key, label], i) => (
-            <div key={key} className="flex items-center">
-              {i > 0 && (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgb(var(--muted))" strokeWidth="2" strokeLinecap="round" className="mx-0.5">
-                  <path d="m9 18 6-6-6-6" />
-                </svg>
-              )}
-              <button
-                onClick={() => setLevel(key)}
-                className={`rounded-full px-4 py-1.5 font-bold transition-colors ${
-                  level === key ? "bg-brand text-white" : "text-muted hover:text-fg"
-                }`}
-              >
-                {label}
-              </button>
-            </div>
-          ))}
+        {/* Funil: Campanha › Conjunto › Anúncio + botão Histórico */}
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-1 rounded-full border border-line bg-surface p-1 text-sm">
+            {FUNNEL.map(([key, label], i) => (
+              <div key={key} className="flex items-center">
+                {i > 0 && (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgb(var(--muted))" strokeWidth="2" strokeLinecap="round" className="mx-0.5">
+                    <path d="m9 18 6-6-6-6" />
+                  </svg>
+                )}
+                <button
+                  onClick={() => {
+                    setLevel(key);
+                    if (key !== "campaign")
+                      logActivity(
+                        `Acessou ${key === "adset" ? "conjuntos" : "anúncios"}`
+                      );
+                  }}
+                  className={`rounded-full px-4 py-1.5 font-bold transition-colors ${
+                    level === key ? "bg-brand text-black" : "text-muted hover:text-fg"
+                  }`}
+                >
+                  {label}
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <Link
+            href="/dashboard/historico"
+            className="flex items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-xs font-bold text-muted transition-colors hover:text-fg"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 3v5h5" />
+              <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8" />
+              <path d="M12 7v5l4 2" />
+            </svg>
+            Histórico
+          </Link>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_300px_340px]">
           <section className="min-w-0">
             {(level === "campaign" ? loading : funnelFirstLoad) ? (
               <SkeletonGrid />
@@ -477,6 +525,8 @@ export function DashboardClient({ email }: { email: string }) {
                 <SectionTitle>Tráfego</SectionTitle>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   <KpiCard label="Impressões" value={num(view.impressions)} hint="Total de exibições" icon={<EyeMetricIcon />} />
+                  <KpiCard label="Alcance" value={num(view.reach)} hint="Pessoas alcançadas" icon={<UserIcon />} />
+                  <KpiCard label="Frequência" value={view.frequency.toFixed(2)} hint="Impressões ÷ alcance" icon={<PercentIcon />} />
                   <KpiCard label="CTR" value={pct(view.ctr)} hint="Cliques ÷ impressões" icon={<PercentIcon />} />
                   <KpiCard label="Cliques no link" value={num(view.link_clicks)} hint={`${num(view.clicks)} cliques totais`} icon={<ClickIcon />} />
                   <KpiCard label="Visualizações da página" value={num(view.lpv)} hint="Landing page views" icon={<PageIcon />} />
@@ -497,6 +547,13 @@ export function DashboardClient({ email }: { email: string }) {
               </>
             )}
           </section>
+
+          {/* Coluna do funil (do lado do painel) */}
+          <aside className="min-w-0">
+            <div className="xl:sticky xl:top-20">
+              <FunnelChart segments={funnelSegments} />
+            </div>
+          </aside>
 
           {/* Coluna lateral: muda conforme o nível */}
           <aside className="min-w-0">
@@ -576,7 +633,7 @@ function FunnelTable({
                   <div className="flex items-center gap-2.5">
                     {level === "ad" && (
                       <>
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-bold text-brand">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand text-xs font-bold text-black">
                           {i + 1}
                         </span>
                         <CreativeThumb url={e.thumbnail_url} full={e.image_url} size={36} />
@@ -681,7 +738,7 @@ function CampaignTable({ metrics }: { metrics: Metric[] }) {
 function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-line bg-surface px-6 py-16 text-center">
-      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-soft text-brand">
+      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand text-black">
         <TargetIcon />
       </div>
       <h3 className="text-lg font-bold text-fg">Nenhum dado ainda</h3>

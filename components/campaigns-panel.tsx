@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { logActivity } from "@/lib/activity";
 
 type Campaign = {
   id: string;
@@ -85,6 +86,9 @@ export function CampaignsPanel({ onSynced }: { onSynced?: () => void }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ is_tracked: next }),
     });
+    logActivity(
+      `${next ? "Ativou" : "Desativou"} campanha "${c.campaign_name ?? c.campaign_id}"`
+    );
     if (syncTimer.current) clearTimeout(syncTimer.current);
     syncTimer.current = setTimeout(silentSync, 800);
   }
