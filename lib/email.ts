@@ -1,155 +1,155 @@
-// Envio de e-mails transacionais via Resend, com template branco moderno.
-// Boas práticas p/ cair na caixa de entrada (evitar Promoções/Social):
-//  - conteúdo transacional, texto claro, 1 CTA, sem imagens pesadas
-//  - versão em texto puro (multipart), remetente com nome real
-//  - domínio verificado no Resend (SPF/DKIM/DMARC)
-
+// Envio de e-mails transacionais via Resend, template branco moderno com o verde da marca.
 const RESEND_API_KEY = process.env.RESEND_API_KEY!;
 const EMAIL_FROM = process.env.EMAIL_FROM ?? "Atyvo Group <no-reply@atyvo.com.br>";
 const DASH_URL = process.env.DASH_URL ?? "https://dash.atyvo.com.br/login";
+const GREEN = "#e0ff92";
+
+const brl = (v: number) =>
+  `R$ ${Math.abs(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const signed = (v: number) => (v < 0 ? "- " : "") + brl(v);
 
 type Shell = {
-  preheader: string;
-  heading: string;
-  body: string; // HTML dos parágrafos
-  ctaLabel?: string;
-  ctaUrl?: string;
+  pre: string;
+  head: string;
+  intro: string;
+  stat?: [string, string];
+  rows?: [string, string][];
+  cta?: string;
+  url?: string;
+  tone?: "neg";
 };
 
-function shell({ preheader, heading, body, ctaLabel, ctaUrl }: Shell) {
-  const cta =
-    ctaLabel && ctaUrl
-      ? `<tr><td style="padding:8px 0 4px;">
-           <a href="${ctaUrl}" style="display:inline-block;background:#111418;color:#ffffff;text-decoration:none;font-weight:700;font-size:15px;padding:13px 26px;border-radius:10px;">${ctaLabel}</a>
-         </td></tr>`
-      : "";
-  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"></head>
-<body style="margin:0;background:#ffffff;">
-<span style="display:none;opacity:0;color:#ffffff;height:0;width:0;overflow:hidden;">${preheader}</span>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;">
-  <tr><td align="center" style="padding:32px 16px;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#ffffff;border:1px solid #eceef2;border-radius:16px;">
-      <tr><td style="padding:26px 30px 0;">
-        <div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-weight:800;font-size:16px;color:#111418;letter-spacing:.2px;">Atyvo Group</div>
-      </td></tr>
-      <tr><td style="padding:18px 30px 30px;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#111418;">
-        <h1 style="margin:0 0 12px;font-size:20px;line-height:1.35;font-weight:800;color:#111418;">${heading}</h1>
-        <div style="font-size:15px;line-height:1.6;color:#3b414b;">${body}</div>
-        <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:14px;">${cta}</table>
-      </td></tr>
-    </table>
-    <div style="max-width:480px;margin:16px auto 0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:12px;line-height:1.6;color:#9aa1ac;text-align:center;">
-      Atyvo Group · Este é um e-mail automático da plataforma.
-    </div>
-  </td></tr>
-</table></body></html>`;
+function shell({ pre, head, intro, stat, rows, cta, url = DASH_URL, tone }: Shell) {
+  let statbg = "#f5ffd8",
+    statborder = "#e7f5ba",
+    big = "#111418";
+  if (tone === "neg") {
+    statbg = "#fff1f1";
+    statborder = "#ffd9d9";
+    big = "#c62828";
+  }
+  const statHtml = stat
+    ? `<tr><td style="padding:4px 0 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${statbg};border:1px solid ${statborder};border-radius:16px;"><tr><td style="padding:20px 22px;"><div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#8a9a4a;">${stat[0]}</div><div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:32px;font-weight:800;color:${big};margin-top:6px;line-height:1;">${stat[1]}</div></td></tr></table></td></tr>`
+    : "";
+  const rowsHtml = rows?.length
+    ? `<tr><td style="padding:14px 0 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows
+        .map(
+          ([k, v]) =>
+            `<tr><td style="padding:11px 0;border-top:1px solid #f0f2f5;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:14px;color:#6b7280;">${k}</td><td style="padding:11px 0;border-top:1px solid #f0f2f5;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:14px;font-weight:700;color:#111418;text-align:right;">${v}</td></tr>`
+        )
+        .join("")}</table></td></tr>`
+    : "";
+  const ctaHtml = cta
+    ? `<tr><td style="padding:24px 0 2px;"><a href="${url}" style="display:inline-block;background:${GREEN};color:#111418;text-decoration:none;font-weight:800;font-size:15px;padding:15px 32px;border-radius:12px;">${cta} &nbsp;&rarr;</a></td></tr>`
+    : "";
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"><meta name="supported-color-schemes" content="light"></head>
+<body style="margin:0;padding:0;background:#ffffff;">
+<span style="display:none;opacity:0;color:#fff;height:0;width:0;overflow:hidden;">${pre}</span>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;"><tr><td align="center" style="padding:36px 16px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #edeff3;border-radius:22px;overflow:hidden;box-shadow:0 8px 30px rgba(17,20,24,.06);">
+    <tr><td style="height:6px;background:${GREEN};font-size:0;line-height:0;">&nbsp;</td></tr>
+    <tr><td style="padding:28px 34px 0;"><div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-weight:800;font-size:17px;color:#111418;">Atyvo Group</div></td></tr>
+    <tr><td style="padding:22px 34px 34px;">
+      <h1 style="margin:0 0 12px;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:23px;line-height:1.3;font-weight:800;color:#111418;">${head}</h1>
+      <div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:15px;line-height:1.65;color:#4b5563;">${intro}</div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${statHtml}${rowsHtml}${ctaHtml}</table>
+    </td></tr>
+  </table>
+  <div style="max-width:560px;margin:18px auto 0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:12px;line-height:1.7;color:#9aa1ac;text-align:center;">Atyvo Group &middot; e-mail automático da plataforma<br>Você recebeu porque tem acesso à dashboard.</div>
+</td></tr></table></body></html>`;
 }
 
-async function send(opts: {
-  to: string;
-  subject: string;
-  html: string;
-  text: string;
-}) {
+async function send(to: string, subject: string, html: string, text: string) {
   if (!RESEND_API_KEY) return { ok: false, error: "sem RESEND_API_KEY" };
   try {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         from: EMAIL_FROM,
-        to: [opts.to],
-        subject: opts.subject,
-        html: opts.html,
-        text: opts.text,
+        to: [to],
+        subject,
+        html,
+        text,
         headers: { "X-Entity-Ref-ID": crypto.randomUUID() },
       }),
     });
     const j = await res.json().catch(() => ({}));
-    return { ok: res.ok, id: j.id, error: res.ok ? undefined : JSON.stringify(j) };
+    return { ok: res.ok, id: j.id };
   } catch (e) {
     return { ok: false, error: String(e) };
   }
 }
 
-const brl = (v: number) =>
-  `R$ ${Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-// 1) Acesso concedido à dashboard
 export function emailAccess(to: string) {
-  return send({
+  return send(
     to,
-    subject: "Seu acesso à dashboard da Atyvo Group",
-    html: shell({
-      preheader: "Você recebeu acesso à dashboard da Atyvo Group.",
-      heading: "Você recebeu acesso à dashboard",
-      body: `<p style="margin:0 0 10px;">Olá! Seu acesso à <b>dashboard da Atyvo Group</b> foi liberado.</p>
-             <p style="margin:0;">Clique no botão abaixo para entrar na plataforma.</p>`,
-      ctaLabel: "Acessar a dashboard",
-      ctaUrl: DASH_URL,
+    "Seu acesso à dashboard da Atyvo Group",
+    shell({
+      pre: "Você recebeu acesso à dashboard.",
+      head: "Acesso liberado 🎯",
+      intro:
+        "<p style='margin:0;'>Olá! Seu acesso à <b>dashboard da Atyvo Group</b> foi liberado. Entre para acompanhar suas campanhas, vendas e resultados em tempo real.</p>",
+      cta: "Acessar a dashboard",
     }),
-    text: `Você recebeu acesso à dashboard da Atyvo Group. Acesse: ${DASH_URL}`,
-  });
+    `Você recebeu acesso à dashboard da Atyvo Group. Acesse: ${DASH_URL}`
+  );
 }
 
-// 2) Login realizado
 export function emailLogin(to: string) {
   const when = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
-  return send({
+  return send(
     to,
-    subject: "Login na sua conta Atyvo Group",
-    html: shell({
-      preheader: "Um login foi realizado na sua conta.",
-      heading: "Login realizado na sua conta",
-      body: `<p style="margin:0 0 10px;">Detectamos um acesso à sua conta em <b>${when}</b>.</p>
-             <p style="margin:0;">Se foi você, tudo certo. Caso não reconheça, altere sua senha.</p>`,
-      ctaLabel: "Abrir a dashboard",
-      ctaUrl: DASH_URL,
+    "Login na sua conta Atyvo Group",
+    shell({
+      pre: "Um login foi realizado na sua conta.",
+      head: "Login realizado",
+      intro:
+        "<p style='margin:0;'>Detectamos um acesso à sua conta. Se foi você, tudo certo. Caso não reconheça, altere sua senha.</p>",
+      rows: [["Data e hora", when], ["Plataforma", "Dashboard Atyvo"]],
+      cta: "Abrir a dashboard",
     }),
-    text: `Login realizado na sua conta Atyvo Group em ${when}. ${DASH_URL}`,
-  });
+    `Login na sua conta Atyvo Group em ${when}. ${DASH_URL}`
+  );
 }
 
-// 3) Venda aprovada
 export function emailSale(
   to: string,
-  data: { amount: number; product?: string | null; client?: string | null }
+  d: { amount: number; product?: string | null; client?: string | null; method?: string | null }
 ) {
-  return send({
+  const rows: [string, string][] = [];
+  if (d.product) rows.push(["Produto", d.product]);
+  if (d.client) rows.push(["Cliente", d.client]);
+  if (d.method) rows.push(["Pagamento", d.method]);
+  return send(
     to,
-    subject: `Venda aprovada · ${brl(data.amount)}`,
-    html: shell({
-      preheader: `Nova venda aprovada de ${brl(data.amount)}.`,
-      heading: "Nova venda aprovada 🎉",
-      body: `<p style="margin:0 0 10px;">Uma venda foi <b>aprovada</b> na sua operação.</p>
-             <p style="margin:0 0 4px;"><b>Valor:</b> ${brl(data.amount)}</p>
-             ${data.product ? `<p style="margin:0 0 4px;"><b>Produto:</b> ${data.product}</p>` : ""}
-             ${data.client ? `<p style="margin:0;"><b>Cliente:</b> ${data.client}</p>` : ""}`,
-      ctaLabel: "Ver no dashboard",
-      ctaUrl: DASH_URL,
+    `Venda aprovada · ${brl(d.amount)}`,
+    shell({
+      pre: `Nova venda aprovada de ${brl(d.amount)}.`,
+      head: "Nova venda aprovada 🎉",
+      intro: "<p style='margin:0;'>Uma venda foi <b>aprovada</b> na sua operação:</p>",
+      stat: ["Valor da venda", brl(d.amount)],
+      rows,
+      cta: "Ver no dashboard",
     }),
-    text: `Venda aprovada: ${brl(data.amount)}${data.product ? " · " + data.product : ""}. ${DASH_URL}`,
-  });
+    `Venda aprovada: ${brl(d.amount)}. ${DASH_URL}`
+  );
 }
 
-// 4) Alerta de prejuízo
-export function emailLoss(to: string, data: { net: number; spend: number; revenue: number }) {
-  return send({
+export function emailLoss(to: string, d: { net: number; spend: number; revenue: number }) {
+  return send(
     to,
-    subject: "Atenção: sua operação está em prejuízo",
-    html: shell({
-      preheader: `Sua conversão líquida está negativa (${brl(data.net)}).`,
-      heading: "Alerta de prejuízo",
-      body: `<p style="margin:0 0 10px;">Sua <b>conversão líquida</b> está negativa no período.</p>
-             <p style="margin:0 0 4px;"><b>Resultado líquido:</b> ${brl(data.net)}</p>
-             <p style="margin:0 0 4px;"><b>Gasto:</b> ${brl(data.spend)}</p>
-             <p style="margin:0;"><b>Receita:</b> ${brl(data.revenue)}</p>`,
-      ctaLabel: "Analisar no dashboard",
-      ctaUrl: DASH_URL,
+    "Atenção: sua operação está em prejuízo",
+    shell({
+      pre: `Sua conversão líquida está negativa (${signed(d.net)}).`,
+      head: "Alerta de prejuízo",
+      intro:
+        "<p style='margin:0;'>Sua <b>conversão líquida</b> está negativa no período. Vale revisar campanhas e criativos.</p>",
+      stat: ["Resultado líquido", signed(d.net)],
+      rows: [["Gasto", brl(d.spend)], ["Receita", brl(d.revenue)], ["Período", "Últimos 30 dias"]],
+      cta: "Analisar no dashboard",
+      tone: "neg",
     }),
-    text: `Alerta de prejuízo. Líquido ${brl(data.net)} · Gasto ${brl(data.spend)} · Receita ${brl(data.revenue)}. ${DASH_URL}`,
-  });
+    `Alerta de prejuízo. Líquido ${signed(d.net)}. ${DASH_URL}`
+  );
 }
