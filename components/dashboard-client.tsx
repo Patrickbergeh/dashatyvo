@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -110,6 +110,19 @@ export function DashboardClient({ email }: { email: string }) {
   const [range, setRange] = useState<Range>(presetRange("30d"));
   const [showPicker, setShowPicker] = useState(false);
   const [level, setLevel] = useState<Level>("campaign");
+  const levelHydrated = useRef(false);
+
+  // Persiste o nível (Campanha/Conjunto/Anúncio) ao recarregar a página
+  useEffect(() => {
+    const saved = localStorage.getItem("dash_level");
+    if (saved === "adset" || saved === "ad" || saved === "campaign") {
+      setLevel(saved);
+    }
+    levelHydrated.current = true;
+  }, []);
+  useEffect(() => {
+    if (levelHydrated.current) localStorage.setItem("dash_level", level);
+  }, [level]);
   // cache por nível: troca instantânea, atualiza em segundo plano (sem piscar)
   const [funnelCache, setFunnelCache] = useState<{
     adset: FunnelEntity[];
@@ -747,7 +760,7 @@ function FunnelTable({
     { id: "", score: 0 }
   ).id;
   return (
-    <div className="inverted mt-6 overflow-hidden rounded-2xl border border-line bg-surface text-fg">
+    <div className="mt-6 overflow-hidden rounded-2xl border border-line bg-surface">
       <div className="border-b border-line px-5 py-4">
         <h3 className="text-base font-bold text-fg">
           {level === "adset" ? "Conjuntos" : "Anúncios"} ativos
@@ -834,7 +847,7 @@ function CampaignTable({ metrics }: { metrics: Metric[] }) {
   }, [metrics]);
 
   return (
-    <div className="inverted mt-6 overflow-hidden rounded-2xl border border-line bg-surface text-fg">
+    <div className="mt-6 overflow-hidden rounded-2xl border border-line bg-surface">
       <div className="border-b border-line px-5 py-4">
         <h3 className="text-base font-bold text-fg">Campanhas</h3>
       </div>
