@@ -13,6 +13,7 @@ import { FunnelPanel, type FunnelEntity } from "@/components/funnel-panel";
 import { FunnelChart, type FunnelSegment } from "@/components/funnel-chart";
 import { CreativeThumb } from "@/components/creative-thumb";
 import { AnimatedNumber } from "@/components/animated-number";
+import { Segmented } from "@/components/segmented";
 import { DateRangePicker, type Range } from "@/components/date-range-picker";
 
 type Level = "campaign" | "adset" | "ad";
@@ -110,19 +111,22 @@ export function DashboardClient({ email }: { email: string }) {
   const [range, setRange] = useState<Range>(presetRange("30d"));
   const [showPicker, setShowPicker] = useState(false);
   const [level, setLevel] = useState<Level>("campaign");
-  const levelHydrated = useRef(false);
 
-  // Persiste o nível (Campanha/Conjunto/Anúncio) ao recarregar a página
+  // Restaura o nível salvo ao carregar a página
   useEffect(() => {
     const saved = localStorage.getItem("dash_level");
-    if (saved === "adset" || saved === "ad" || saved === "campaign") {
-      setLevel(saved);
-    }
-    levelHydrated.current = true;
+    if (saved === "adset" || saved === "ad") setLevel(saved as Level);
   }, []);
-  useEffect(() => {
-    if (levelHydrated.current) localStorage.setItem("dash_level", level);
-  }, [level]);
+
+  // Troca de nível e persiste (só em ação do usuário -> sem sobrescrever ao carregar)
+  const changeLevel = useCallback((lvl: Level) => {
+    setLevel(lvl);
+    try {
+      localStorage.setItem("dash_level", lvl);
+    } catch {
+      /* ignora */
+    }
+  }, []);
   // cache por nível: troca instantânea, atualiza em segundo plano (sem piscar)
   const [funnelCache, setFunnelCache] = useState<{
     adset: FunnelEntity[];
@@ -444,52 +448,44 @@ export function DashboardClient({ email }: { email: string }) {
       {/* Topo minimalista — sem logo/nome */}
       <header className="sticky top-0 z-20 shrink-0 border-b border-line bg-bg/80 backdrop-blur">
         <div className="flex w-full items-center justify-between px-6 py-3.5">
-          <div className="relative flex items-center gap-2 rounded-full border border-line bg-surface p-1">
-            {PRESETS.map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => {
-                  setPreset(key);
-                  setRange(presetRange(key));
-                  setShowPicker(false);
-                }}
-                className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition-colors ${
-                  preset === key
-                    ? "bg-brand text-black"
-                    : "text-muted hover:text-fg"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-            <button
-              onClick={() => setShowPicker((s) => !s)}
-              className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition-colors ${
-                preset === "custom"
-                  ? "bg-brand text-black"
-                  : "text-muted hover:text-fg"
-              }`}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" />
-                <path d="M16 2v4M8 2v4M3 10h18" />
-              </svg>
-              {preset === "custom" && range.start
-                ? `${fmtBR(range.start)} — ${fmtBR(range.end ?? range.start)}`
-                : "Personalizado"}
-            </button>
-            {showPicker && (
-              <DateRangePicker
-                value={range.start ? range : presetRange("30d")}
-                onApply={(r) => {
-                  setRange(r);
-                  setPreset("custom");
-                  setShowPicker(false);
-                }}
-                onClose={() => setShowPicker(false)}
-              />
-            )}
-          </div>
+          <Segmented
+            options={PRESETS}
+            value={preset === "custom" ? null : preset}
+            onChange={(k) => {
+              setPreset(k);
+              setRange(presetRange(k));
+              setShowPicker(false);
+            }}
+            extra={
+              <>
+                <button
+                  onClick={() => setShowPicker((s) => !s)}
+                  className={`relative z-10 flex items-center gap-1.5 whitespace-nowrap rounded-full px-4 py-1.5 font-bold transition-colors ${
+                    preset === "custom" ? "bg-brand text-black" : "text-muted hover:text-fg"
+                  }`}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" />
+                    <path d="M16 2v4M8 2v4M3 10h18" />
+                  </svg>
+                  {preset === "custom" && range.start
+                    ? `${fmtBR(range.start)} — ${fmtBR(range.end ?? range.start)}`
+                    : "Personalizado"}
+                </button>
+                {showPicker && (
+                  <DateRangePicker
+                    value={range.start ? range : presetRange("30d")}
+                    onApply={(r) => {
+                      setRange(r);
+                      setPreset("custom");
+                      setShowPicker(false);
+                    }}
+                    onClose={() => setShowPicker(false)}
+                  />
+                )}
+              </>
+            }
+          />
 
           <div className="flex items-center gap-3">
             <ThemeToggle />
@@ -518,31 +514,16 @@ export function DashboardClient({ email }: { email: string }) {
       <main className="flex w-full flex-col px-6 py-7 xl:min-h-0 xl:flex-1 xl:py-5">
         {/* Funil: Campanha › Conjunto › Anúncio + botão Histórico */}
         <div className="mb-6 flex shrink-0 items-center justify-between gap-3">
-          <div className="flex items-center gap-1 rounded-full border border-line bg-surface p-1 text-sm">
-            {FUNNEL.map(([key, label], i) => (
-              <div key={key} className="flex items-center">
-                {i > 0 && (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgb(var(--muted))" strokeWidth="2" strokeLinecap="round" className="mx-0.5">
-                    <path d="m9 18 6-6-6-6" />
-                  </svg>
-                )}
-                <button
-                  onClick={() => {
-                    setLevel(key);
-                    if (key !== "campaign")
-                      logActivity(
-                        `Acessou ${key === "adset" ? "conjuntos" : "anúncios"}`
-                      );
-                  }}
-                  className={`rounded-full px-4 py-1.5 font-bold transition-colors ${
-                    level === key ? "bg-brand text-black" : "text-muted hover:text-fg"
-                  }`}
-                >
-                  {label}
-                </button>
-              </div>
-            ))}
-          </div>
+          <Segmented
+            options={FUNNEL}
+            value={level}
+            chevron
+            onChange={(k) => {
+              changeLevel(k);
+              if (k !== "campaign")
+                logActivity(`Acessou ${k === "adset" ? "conjuntos" : "anúncios"}`);
+            }}
+          />
 
           <Link
             href="/dashboard/historico"
