@@ -365,9 +365,9 @@ export function DashboardClient({ email }: { email: string }) {
     level !== "campaign" && !funnelFetched[level] && funnel.length === 0;
 
   return (
-    <div className="min-h-screen bg-bg">
+    <div className="flex min-h-screen flex-col bg-bg xl:h-screen xl:overflow-hidden">
       {/* Topo minimalista — sem logo/nome */}
-      <header className="sticky top-0 z-20 border-b border-line bg-bg/80 backdrop-blur">
+      <header className="sticky top-0 z-20 shrink-0 border-b border-line bg-bg/80 backdrop-blur">
         <div className="flex w-full items-center justify-between px-6 py-3.5">
           <div className="relative flex items-center gap-2 rounded-full border border-line bg-surface p-1">
             {PRESETS.map(([key, label]) => (
@@ -440,9 +440,9 @@ export function DashboardClient({ email }: { email: string }) {
         </div>
       </header>
 
-      <main className="w-full px-6 py-7">
+      <main className="flex w-full flex-col px-6 py-7 xl:min-h-0 xl:flex-1 xl:py-5">
         {/* Funil: Campanha › Conjunto › Anúncio + botão Histórico */}
-        <div className="mb-6 flex items-center justify-between gap-3">
+        <div className="mb-6 flex shrink-0 items-center justify-between gap-3">
           <div className="flex items-center gap-1 rounded-full border border-line bg-surface p-1 text-sm">
             {FUNNEL.map(([key, label], i) => (
               <div key={key} className="flex items-center">
@@ -482,8 +482,8 @@ export function DashboardClient({ email }: { email: string }) {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_440px_340px]">
-          <section className="min-w-0">
+        <div className="grid grid-cols-1 gap-6 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(0,1fr)_440px_340px]">
+          <section className="min-w-0 xl:min-h-0 xl:overflow-y-auto xl:pr-1">
             {(level === "campaign" ? loading : funnelFirstLoad) ? (
               <SkeletonGrid />
             ) : (
@@ -549,15 +549,15 @@ export function DashboardClient({ email }: { email: string }) {
           </section>
 
           {/* Coluna do funil (do lado do painel) */}
-          <aside className="min-w-0">
-            <div className="xl:sticky xl:top-20">
+          <aside className="min-w-0 xl:min-h-0">
+            <div className="h-full">
               <FunnelChart segments={funnelSegments} />
             </div>
           </aside>
 
           {/* Coluna lateral: muda conforme o nível */}
-          <aside className="min-w-0">
-            <div className="xl:sticky xl:top-20">
+          <aside className="min-w-0 xl:min-h-0">
+            <div className="h-full">
               {level === "campaign" ? (
                 <CampaignsPanel onSynced={loadMetrics} />
               ) : (

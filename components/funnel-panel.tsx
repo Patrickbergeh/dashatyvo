@@ -52,7 +52,7 @@ export function FunnelPanel({
   const trackedCount = entities.filter((e) => e.is_tracked).length;
 
   return (
-    <div className="flex h-[calc(100vh-7rem)] flex-col overflow-hidden rounded-2xl border border-line bg-surface">
+    <div className="flex h-[calc(100vh-9rem)] flex-col overflow-hidden rounded-2xl border border-line bg-surface xl:h-full">
       <div className="border-b border-line px-4 py-3.5">
         <h3 className="text-sm font-bold text-fg">{title}</h3>
         <p className="text-xs text-muted">

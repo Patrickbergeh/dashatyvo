@@ -121,7 +121,7 @@ export function CampaignsPanel({ onSynced }: { onSynced?: () => void }) {
   }
 
   return (
-    <div className="flex h-[calc(100vh-7rem)] flex-col overflow-hidden rounded-2xl border border-line bg-surface">
+    <div className="flex h-[calc(100vh-9rem)] flex-col overflow-hidden rounded-2xl border border-line bg-surface xl:h-full">
       <div className="border-b border-line px-4 py-3.5">
         <div className="flex items-center justify-between">
           <div>

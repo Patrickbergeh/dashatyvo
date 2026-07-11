@@ -19,7 +19,7 @@ export function FunnelChart({ segments }: { segments: FunnelSegment[] }) {
   };
 
   return (
-    <div className="flex h-[calc(100vh-7rem)] flex-col rounded-2xl border border-line bg-surface p-4">
+    <div className="flex h-[calc(100vh-9rem)] flex-col rounded-2xl border border-line bg-surface p-4 xl:h-full">
       <div className="flex flex-1 flex-col gap-1">
         {segments.map((s, i) => {
           const wt = widthAt(i);
