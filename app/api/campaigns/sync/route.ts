@@ -3,24 +3,27 @@ import { createClient } from "@/lib/supabase/server";
 
 const GRAPH = "https://graph.facebook.com/v20.0";
 
-// Soma valores de uma lista de tipos de ação (ex.: compras em pixel/onsite)
+// A Meta repete o MESMO evento em vários rótulos (pixel/onsite/omni). NÃO somar,
+// senão conta 4x. Pega UM valor, na ordem de prioridade (omni = rollup deduplicado).
 const PURCHASE_TYPES = [
+  "omni_purchase",
   "purchase",
   "offsite_conversion.fb_pixel_purchase",
   "onsite_conversion.purchase",
-  "omni_purchase",
 ];
 const CHECKOUT_TYPES = [
+  "omni_initiated_checkout",
   "initiate_checkout",
   "offsite_conversion.fb_pixel_initiate_checkout",
   "onsite_web_initiate_checkout",
-  "omni_initiated_checkout",
 ];
 function sumActions(arr: any[], types: string[]): number {
   if (!Array.isArray(arr)) return 0;
-  return arr
-    .filter((a) => types.includes(a.action_type))
-    .reduce((s, a) => s + Number(a.value ?? 0), 0);
+  for (const t of types) {
+    const hit = arr.find((a) => a.action_type === t);
+    if (hit) return Number(hit.value ?? 0);
+  }
+  return 0;
 }
 function actionValue(arr: any[], type: string): number {
   if (!Array.isArray(arr)) return 0;

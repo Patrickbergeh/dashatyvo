@@ -3,17 +3,19 @@ import { createClient } from "@/lib/supabase/server";
 
 const GRAPH = "https://graph.facebook.com/v20.0";
 
+// A Meta repete o MESMO evento em vários rótulos (pixel/onsite/omni). NÃO somar,
+// senão conta 4x. Pega UM valor, na ordem de prioridade (omni = rollup deduplicado).
 const PURCHASE_TYPES = [
+  "omni_purchase",
   "purchase",
   "offsite_conversion.fb_pixel_purchase",
   "onsite_conversion.purchase",
-  "omni_purchase",
 ];
 const CHECKOUT_TYPES = [
+  "omni_initiated_checkout",
   "initiate_checkout",
   "offsite_conversion.fb_pixel_initiate_checkout",
   "onsite_web_initiate_checkout",
-  "omni_initiated_checkout",
 ];
 function av(arr: any[], type: string): number {
   if (!Array.isArray(arr)) return 0;
@@ -22,9 +24,11 @@ function av(arr: any[], type: string): number {
 }
 function sum(arr: any[], types: string[]): number {
   if (!Array.isArray(arr)) return 0;
-  return arr
-    .filter((a) => types.includes(a.action_type))
-    .reduce((s, a) => s + Number(a.value ?? 0), 0);
+  for (const t of types) {
+    const hit = arr.find((a) => a.action_type === t);
+    if (hit) return Number(hit.value ?? 0);
+  }
+  return 0;
 }
 // Busca TODAS as páginas (segue paging.next) -> nunca trunca.
 async function fetchAll(url: string): Promise<any[]> {
