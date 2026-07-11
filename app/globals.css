@@ -30,6 +30,26 @@
   --negative: 248 92 92;
 }
 
+/* Bloco com tema INVERTIDO: escuro no modo claro e claro no modo escuro */
+.inverted {
+  --bg: 10 11 15;
+  --surface: 18 20 27;
+  --elevated: 24 27 36;
+  --line: 38 42 54;
+  --fg: 237 240 246;
+  --muted: 148 156 173;
+  --brand-soft: 38 48 18;
+}
+.dark .inverted {
+  --bg: 247 248 250;
+  --surface: 255 255 255;
+  --elevated: 255 255 255;
+  --line: 229 231 235;
+  --fg: 17 20 26;
+  --muted: 107 114 128;
+  --brand-soft: 240 255 205;
+}
+
 * {
   border-color: rgb(var(--line));
 }

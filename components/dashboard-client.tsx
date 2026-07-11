@@ -12,6 +12,7 @@ import { CampaignsPanel } from "@/components/campaigns-panel";
 import { FunnelPanel, type FunnelEntity } from "@/components/funnel-panel";
 import { FunnelChart, type FunnelSegment } from "@/components/funnel-chart";
 import { CreativeThumb } from "@/components/creative-thumb";
+import { AnimatedNumber } from "@/components/animated-number";
 import { DateRangePicker, type Range } from "@/components/date-range-picker";
 
 type Level = "campaign" | "adset" | "ad";
@@ -94,8 +95,10 @@ const fmtBR = (s: string) => {
 
 const brl = (v: number) =>
   `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const num = (v: number) => v.toLocaleString("pt-BR");
+const num = (v: number) => Math.round(v).toLocaleString("pt-BR");
 const pct = (v: number) => `${v.toFixed(2)}%`;
+const roasFmt = (v: number) => `${v.toFixed(2)}x`;
+const dec2 = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function DashboardClient({ email }: { email: string }) {
   const router = useRouter();
@@ -153,6 +156,24 @@ export function DashboardClient({ email }: { email: string }) {
     loadMetrics();
   }, [loadMetrics]);
 
+  // Atualiza o banco (conjuntos/anúncios) em 2º plano; a EXIBIÇÃO vem do banco.
+  // Assim clicar em Conjunto/Anúncio é instantâneo (lê do banco), e a Meta só
+  // valida/atualiza por baixo.
+  useEffect(() => {
+    (async () => {
+      try {
+        await fetch("/api/funnel/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ days: 30 }),
+        });
+        setFunnelFetched({ adset: false, ad: false }); // re-lê do banco atualizado
+      } catch {
+        /* silencioso */
+      }
+    })();
+  }, []);
+
   const filtered = useMemo(() => {
     return metrics.filter((m) => {
       if (range.start && m.date < range.start) return false;
@@ -208,6 +229,8 @@ export function DashboardClient({ email }: { email: string }) {
       cpm: t.impressions > 0 ? (t.spend / t.impressions) * 1000 : 0,
       ctr: t.impressions > 0 ? (t.clicks / t.impressions) * 100 : 0,
       frequency: t.reach > 0 ? t.impressions / t.reach : 0,
+      connectRate: t.link_clicks > 0 ? (t.lpv / t.link_clicks) * 100 : 0,
+      cpv: t.lpv > 0 ? t.spend / t.lpv : 0,
       conv: t.lpv > 0 ? (sales / t.lpv) * 100 : 0,
     };
   }, [filtered, green]);
@@ -238,11 +261,15 @@ export function DashboardClient({ email }: { email: string }) {
     [range]
   );
 
-  // Busca o nível atual só uma vez por período (evita estourar o rate limit).
-  // Ao voltar num nível já buscado, usa o cache (troca instantânea, sem chamada).
+  // Pré-carrega conjuntos e anúncios em 2º plano -> troca de nível instantânea.
+  // Cada nível é buscado 1x por período (cache), sequencial pra não sobrecarregar.
   useEffect(() => {
-    if (level !== "campaign" && !funnelFetched[level]) fetchLevel(level);
-  }, [level, funnelFetched, fetchLevel]);
+    if (!funnelFetched.adset) {
+      fetchLevel("adset");
+      return;
+    }
+    if (!funnelFetched.ad) fetchLevel("ad");
+  }, [funnelFetched.adset, funnelFetched.ad, fetchLevel]);
 
   // Ao mudar o período, marca os níveis como não-buscados (revalida ao visitar)
   useEffect(() => {
@@ -300,6 +327,8 @@ export function DashboardClient({ email }: { email: string }) {
       cpm: t.impressions > 0 ? (t.spend / t.impressions) * 1000 : 0,
       ctr: t.impressions > 0 ? (t.clicks / t.impressions) * 100 : 0,
       frequency: t.reach > 0 ? t.impressions / t.reach : 0,
+      connectRate: t.link_clicks > 0 ? (t.lpv / t.link_clicks) * 100 : 0,
+      cpv: t.lpv > 0 ? t.spend / t.lpv : 0,
       conv: t.lpv > 0 ? (sales / t.lpv) * 100 : 0,
     };
   }, [level, k, funnel, green]);
@@ -321,16 +350,16 @@ export function DashboardClient({ email }: { email: string }) {
   // Funil (topo -> base) com as métricas do nível/período atual
   const funnelSegments: FunnelSegment[] = useMemo(
     () => [
-      { label: "Impressões", value: num(view.impressions) },
-      { label: "Alcance", value: num(view.reach) },
-      { label: "Frequência", value: view.frequency.toFixed(2) },
-      { label: "CTR", value: pct(view.ctr) },
-      { label: "Cliques no link", value: num(view.link_clicks) },
-      { label: "Visualizações da página", value: num(view.lpv) },
-      { label: "Initiate checkout", value: num(view.initiate_checkout) },
-      { label: "Compras", value: num(view.sales) },
-      { label: "Custo por compra", value: brl(view.cpa) },
-      { label: "ROAS", value: `${view.roas.toFixed(2)}x` },
+      { label: "Impressões", value: view.impressions, format: num },
+      { label: "Alcance", value: view.reach, format: num },
+      { label: "Frequência", value: view.frequency, format: dec2 },
+      { label: "CTR", value: view.ctr, format: pct },
+      { label: "Cliques no link", value: view.link_clicks, format: num },
+      { label: "Visualizações da página", value: view.lpv, format: num },
+      { label: "Initiate checkout", value: view.initiate_checkout, format: num },
+      { label: "Compras", value: view.sales, format: num },
+      { label: "Custo por compra", value: view.cpa, format: brl },
+      { label: "ROAS", value: view.roas, format: roasFmt },
     ],
     [view]
   );
@@ -488,54 +517,7 @@ export function DashboardClient({ email }: { email: string }) {
               <SkeletonGrid />
             ) : (
               <>
-                {/* VENDAS */}
-                <SectionTitle first>Vendas</SectionTitle>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  <KpiCard label="Vendas aprovadas" value={num(view.sales)} hint={`via Green · ${brl(view.revenue)}`} icon={<CartIcon />} accent />
-                  <KpiCard label="Taxa de conversão" value={pct(view.conv)} hint="Vendas / visualizações da página" icon={<PercentIcon />} />
-                  <KpiCard label="Initiate Checkout" value={num(view.initiate_checkout)} hint="Checkouts iniciados" icon={<CartIcon />} />
-                </div>
-
-                {/* FINANCEIRO */}
-                <SectionTitle>Financeiro</SectionTitle>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <KpiCard label="Conversão bruta" value={brl(conv.gross)} hint="Valor bruto das vendas" icon={<CashIcon />} />
-                  <KpiCard
-                    label="Conversão líquida"
-                    value={`${conv.net < 0 ? "−" : ""}${brl(Math.abs(conv.net))}`}
-                    tone={conv.net >= 0 ? "positive" : "negative"}
-                    badge={conv.net >= 0 ? "Lucro" : "Prejuízo"}
-                    hint="Venda − taxa Green − gasto c/ imposto Meta"
-                    icon={<CashIcon />}
-                  />
-                  <KpiCard label="ROAS" value={`${view.roas.toFixed(2)}x`} hint={`Receita ${brl(view.revenue)}`} icon={<TargetIcon />} />
-                  <KpiCard label="CPA" value={brl(view.cpa)} hint="Custo por venda aprovada" icon={<UserIcon />} />
-                </div>
-
-                {/* INVESTIMENTO */}
-                <SectionTitle>Investimento</SectionTitle>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <KpiCard label="Valor gasto" value={brl(view.spend)} hint="Investimento total no período" icon={<WalletIcon />} />
-                  <KpiCard label="Gasto c/ imposto Meta" value={brl(conv.spendWithTax)} hint={`+ 12,15% de imposto (${brl(conv.metaTax)})`} icon={<WalletIcon />} />
-                  <KpiCard label="CPC (link)" value={brl(view.cpc)} hint="Custo por clique no link" icon={<ClickIcon />} />
-                  <KpiCard label="CPM" value={brl(view.cpm)} hint="Custo por mil impressões" icon={<EyeMetricIcon />} />
-                </div>
-
-                {/* TRÁFEGO */}
-                <SectionTitle>Tráfego</SectionTitle>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <KpiCard label="Impressões" value={num(view.impressions)} hint="Total de exibições" icon={<EyeMetricIcon />} />
-                  <KpiCard label="Alcance" value={num(view.reach)} hint="Pessoas alcançadas" icon={<UserIcon />} />
-                  <KpiCard label="Frequência" value={view.frequency.toFixed(2)} hint="Impressões ÷ alcance" icon={<PercentIcon />} />
-                  <KpiCard label="CTR" value={pct(view.ctr)} hint="Cliques ÷ impressões" icon={<PercentIcon />} />
-                  <KpiCard label="Cliques no link" value={num(view.link_clicks)} hint={`${num(view.clicks)} cliques totais`} icon={<ClickIcon />} />
-                  <KpiCard label="Visualizações da página" value={num(view.lpv)} hint="Landing page views" icon={<PageIcon />} />
-                </div>
-
-                <div className="mt-6">
-                  <SpendChart data={chart} />
-                </div>
-
+                {/* TABELA (campanhas / conjuntos / anúncios) no topo */}
                 {level === "campaign" ? (
                   <CampaignTable metrics={filtered} />
                 ) : (
@@ -544,6 +526,56 @@ export function DashboardClient({ email }: { email: string }) {
                     entities={funnel.filter((e) => e.is_tracked)}
                   />
                 )}
+
+                {/* VENDAS */}
+                <SectionTitle>Vendas</SectionTitle>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  <KpiCard label="Vendas aprovadas" value={<AnimatedNumber value={view.sales} format={num} />} hint={`via Green · ${brl(view.revenue)}`} icon={<CartIcon />} accent />
+                  <KpiCard label="Taxa de conversão" value={<AnimatedNumber value={view.conv} format={pct} />} hint="Vendas / visualizações da página" icon={<PercentIcon />} />
+                  <KpiCard label="Initiate Checkout" value={<AnimatedNumber value={view.initiate_checkout} format={num} />} hint="Checkouts iniciados" icon={<CartIcon />} />
+                </div>
+
+                {/* FINANCEIRO */}
+                <SectionTitle>Financeiro</SectionTitle>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <KpiCard label="Conversão bruta" value={<AnimatedNumber value={conv.gross} format={brl} />} hint="Valor bruto das vendas" icon={<CashIcon />} />
+                  <KpiCard
+                    label="Conversão líquida"
+                    value={<AnimatedNumber value={conv.net} format={(v) => `${v < 0 ? "−" : ""}${brl(Math.abs(v))}`} />}
+                    tone={conv.net >= 0 ? "positive" : "negative"}
+                    badge={conv.net >= 0 ? "Lucro" : "Prejuízo"}
+                    hint="Venda − taxa Green − gasto c/ imposto Meta"
+                    icon={<CashIcon />}
+                  />
+                  <KpiCard label="ROAS" value={<AnimatedNumber value={view.roas} format={roasFmt} />} hint={`Receita ${brl(view.revenue)}`} icon={<TargetIcon />} />
+                  <KpiCard label="CPA" value={<AnimatedNumber value={view.cpa} format={brl} />} hint="Custo por venda aprovada" icon={<UserIcon />} />
+                </div>
+
+                {/* INVESTIMENTO */}
+                <SectionTitle>Investimento</SectionTitle>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <KpiCard label="Valor gasto" value={<AnimatedNumber value={view.spend} format={brl} />} hint="Investimento total no período" icon={<WalletIcon />} />
+                  <KpiCard label="Gasto c/ imposto Meta" value={<AnimatedNumber value={conv.spendWithTax} format={brl} />} hint={`+ 12,15% de imposto (${brl(conv.metaTax)})`} icon={<WalletIcon />} />
+                  <KpiCard label="CPC (link)" value={<AnimatedNumber value={view.cpc} format={brl} />} hint="Custo por clique no link" icon={<ClickIcon />} />
+                  <KpiCard label="CPM" value={<AnimatedNumber value={view.cpm} format={brl} />} hint="Custo por mil impressões" icon={<EyeMetricIcon />} />
+                  <KpiCard label="Custo por view de página" value={<AnimatedNumber value={view.cpv} format={brl} />} hint="Gasto ÷ visualizações da página" icon={<PageIcon />} />
+                </div>
+
+                {/* TRÁFEGO */}
+                <SectionTitle>Tráfego</SectionTitle>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <KpiCard label="Impressões" value={<AnimatedNumber value={view.impressions} format={num} />} hint="Total de exibições" icon={<EyeMetricIcon />} />
+                  <KpiCard label="Alcance" value={<AnimatedNumber value={view.reach} format={num} />} hint="Pessoas alcançadas" icon={<UserIcon />} />
+                  <KpiCard label="Frequência" value={<AnimatedNumber value={view.frequency} format={dec2} />} hint="Impressões ÷ alcance" icon={<PercentIcon />} />
+                  <KpiCard label="CTR" value={<AnimatedNumber value={view.ctr} format={pct} />} hint="Cliques ÷ impressões" icon={<PercentIcon />} />
+                  <KpiCard label="Cliques no link" value={<AnimatedNumber value={view.link_clicks} format={num} />} hint={`${num(view.clicks)} cliques totais`} icon={<ClickIcon />} />
+                  <KpiCard label="Visualizações da página" value={<AnimatedNumber value={view.lpv} format={num} />} hint="Landing page views" icon={<PageIcon />} />
+                  <KpiCard label="Connect Rate" value={<AnimatedNumber value={view.connectRate} format={pct} />} hint="Visualizações da página ÷ cliques no link" icon={<PercentIcon />} />
+                </div>
+
+                <div className="mt-6">
+                  <SpendChart data={chart} />
+                </div>
               </>
             )}
           </section>
@@ -593,6 +625,78 @@ function SectionTitle({
   );
 }
 
+// Métricas derivadas por linha (usadas nas tabelas de campanha/conjunto/anúncio)
+type RowRaw = {
+  spend: number;
+  revenue: number;
+  impressions: number;
+  reach: number;
+  clicks: number;
+  link_clicks: number;
+  lpv: number;
+  sales: number;
+};
+function derive(r: RowRaw) {
+  const spend = Number(r.spend),
+    rev = Number(r.revenue),
+    imp = Number(r.impressions),
+    reach = Number(r.reach),
+    clicks = Number(r.clicks),
+    lc = Number(r.link_clicks),
+    lpv = Number(r.lpv),
+    sales = Number(r.sales);
+  return {
+    sales,
+    lucro: rev - spend * (1 + META_TAX), // lucro real (receita − gasto c/ imposto)
+    spend,
+    imp,
+    reach,
+    freq: reach > 0 ? imp / reach : 0,
+    ctr: imp > 0 ? (clicks / imp) * 100 : 0,
+    cpc: lc > 0 ? spend / lc : 0,
+    cpm: imp > 0 ? (spend / imp) * 1000 : 0,
+    cpv: lpv > 0 ? spend / lpv : 0, // custo por visualização de página
+  };
+}
+function MetricHeaders() {
+  return (
+    <>
+      <th className="px-4 py-3">Vendas</th>
+      <th className="px-4 py-3">Lucro real</th>
+      <th className="px-4 py-3">Gasto</th>
+      <th className="px-4 py-3">Impressões</th>
+      <th className="px-4 py-3">Alcance</th>
+      <th className="px-4 py-3">Freq.</th>
+      <th className="px-4 py-3">CTR</th>
+      <th className="px-4 py-3">CPC</th>
+      <th className="px-4 py-3">CPM</th>
+      <th className="px-4 py-3">Custo/view</th>
+    </>
+  );
+}
+function MetricCells({ m }: { m: ReturnType<typeof derive> }) {
+  return (
+    <>
+      <td className="whitespace-nowrap px-4 py-3 text-fg">{num(m.sales)}</td>
+      <td
+        className={`whitespace-nowrap px-4 py-3 font-bold ${
+          m.lucro >= 0 ? "text-positive" : "text-negative"
+        }`}
+      >
+        {`${m.lucro < 0 ? "−" : ""}${brl(Math.abs(m.lucro))}`}
+      </td>
+      <td className="whitespace-nowrap px-4 py-3 text-fg">{brl(m.spend)}</td>
+      <td className="whitespace-nowrap px-4 py-3 text-fg">{num(m.imp)}</td>
+      <td className="whitespace-nowrap px-4 py-3 text-fg">{num(m.reach)}</td>
+      <td className="whitespace-nowrap px-4 py-3 text-fg">{m.freq.toFixed(2)}</td>
+      <td className="whitespace-nowrap px-4 py-3 text-fg">{pct(m.ctr)}</td>
+      <td className="whitespace-nowrap px-4 py-3 text-fg">{brl(m.cpc)}</td>
+      <td className="whitespace-nowrap px-4 py-3 text-fg">{brl(m.cpm)}</td>
+      <td className="whitespace-nowrap px-4 py-3 text-fg">{brl(m.cpv)}</td>
+    </>
+  );
+}
+
 function FunnelTable({
   level,
   entities,
@@ -601,13 +705,20 @@ function FunnelTable({
   entities: FunnelEntity[];
 }) {
   const rows = [...entities].sort((a, b) => b.spend - a.spend);
+  // top desempenho: mais cliques no link + visualizações da página
+  const topId = rows.reduce(
+    (best, e) => {
+      const score = Number(e.link_clicks) + Number(e.lpv);
+      return score > best.score ? { id: e.entity_id, score } : best;
+    },
+    { id: "", score: 0 }
+  ).id;
   return (
-    <div className="mt-6 overflow-hidden rounded-2xl border border-line bg-surface">
+    <div className="inverted mt-6 overflow-hidden rounded-2xl border border-line bg-surface text-fg">
       <div className="border-b border-line px-5 py-4">
         <h3 className="text-base font-bold text-fg">
           {level === "adset" ? "Conjuntos" : "Anúncios"} ativos
         </h3>
-        <p className="text-xs text-muted">Ordenados por valor gasto</p>
       </div>
       <div className="h-[420px] overflow-auto">
         {rows.length === 0 ? (
@@ -619,40 +730,36 @@ function FunnelTable({
           <thead className="sticky top-0 z-10 bg-surface">
             <tr className="text-left text-xs font-bold text-muted">
               <th className="px-5 py-3">{level === "adset" ? "Conjunto" : "Anúncio"}</th>
-              <th className="px-5 py-3">Gasto</th>
-              <th className="px-5 py-3">Cliques no link</th>
-              <th className="px-5 py-3">Views</th>
-              <th className="px-5 py-3">CPC</th>
-              <th className="px-5 py-3">CPM</th>
+              <MetricHeaders />
+              <th className="px-4 py-3">Cliques no link</th>
+              <th className="px-4 py-3">Views</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((e, i) => (
-              <tr key={e.entity_id} className="border-t border-line">
-                <td className="px-5 py-3">
-                  <div className="flex items-center gap-2.5">
-                    {level === "ad" && (
-                      <>
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand text-xs font-bold text-black">
-                          {i + 1}
-                        </span>
-                        <CreativeThumb url={e.thumbnail_url} full={e.image_url} size={36} />
-                      </>
-                    )}
-                    <span className="truncate font-bold text-fg">{e.name}</span>
-                  </div>
-                </td>
-                <td className="px-5 py-3 text-fg">{brl(e.spend)}</td>
-                <td className="px-5 py-3 text-fg">{num(e.link_clicks)}</td>
-                <td className="px-5 py-3 text-fg">{num(e.lpv)}</td>
-                <td className="px-5 py-3 text-fg">
-                  {brl(e.link_clicks > 0 ? e.spend / e.link_clicks : 0)}
-                </td>
-                <td className="px-5 py-3 text-fg">
-                  {brl(e.impressions > 0 ? (e.spend / e.impressions) * 1000 : 0)}
-                </td>
-              </tr>
-            ))}
+            {rows.map((e, i) => {
+              const m = derive(e);
+              return (
+                <tr key={e.entity_id} className="border-t border-line">
+                  <td className="px-5 py-3">
+                    <div className="flex items-center gap-2.5">
+                      {level === "ad" && (
+                        <>
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand text-xs font-bold text-black">
+                            {i + 1}
+                          </span>
+                          <CreativeThumb url={e.thumbnail_url} full={e.image_url} size={36} />
+                        </>
+                      )}
+                      <span className="max-w-[180px] truncate font-bold text-fg">{e.name}</span>
+                      {e.entity_id === topId && <FireIcon />}
+                    </div>
+                  </td>
+                  <MetricCells m={m} />
+                  <td className="whitespace-nowrap px-4 py-3 text-fg">{num(e.link_clicks)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-fg">{num(e.lpv)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
         )}
@@ -663,33 +770,40 @@ function FunnelTable({
 
 function CampaignTable({ metrics }: { metrics: Metric[] }) {
   const rows = useMemo(() => {
-    const map = new Map<
-      string,
-      { spend: number; revenue: number; sales: number; clicks: number }
-    >();
+    const map = new Map<string, RowRaw & { link_clicks: number }>();
     for (const m of metrics) {
       const key = m.campaign_name || "Sem campanha";
-      const cur = map.get(key) ?? { spend: 0, revenue: 0, sales: 0, clicks: 0 };
+      const cur =
+        map.get(key) ??
+        {
+          spend: 0,
+          revenue: 0,
+          impressions: 0,
+          reach: 0,
+          clicks: 0,
+          link_clicks: 0,
+          lpv: 0,
+          sales: 0,
+        };
       cur.spend += Number(m.spend);
       cur.revenue += Number(m.revenue);
-      cur.sales += Number(m.sales);
+      cur.impressions += Number(m.impressions);
+      cur.reach += Number(m.reach ?? 0);
       cur.clicks += Number(m.clicks);
+      cur.link_clicks += Number(m.link_clicks ?? 0);
+      cur.lpv += Number(m.landing_page_views ?? 0);
+      cur.sales += Number(m.sales);
       map.set(key, cur);
     }
     return Array.from(map.entries())
-      .map(([name, v]) => ({
-        name,
-        ...v,
-        roas: v.spend > 0 ? v.revenue / v.spend : 0,
-      }))
+      .map(([name, v]) => ({ name, ...v }))
       .sort((a, b) => b.spend - a.spend);
   }, [metrics]);
 
   return (
-    <div className="mt-6 overflow-hidden rounded-2xl border border-line bg-surface">
+    <div className="inverted mt-6 overflow-hidden rounded-2xl border border-line bg-surface text-fg">
       <div className="border-b border-line px-5 py-4">
         <h3 className="text-base font-bold text-fg">Campanhas</h3>
-        <p className="text-xs text-muted">Ordenadas por valor gasto</p>
       </div>
       <div className="h-[420px] overflow-auto">
         {rows.length === 0 ? (
@@ -697,38 +811,33 @@ function CampaignTable({ metrics }: { metrics: Metric[] }) {
             Nenhuma campanha ativa no período.
           </div>
         ) : (
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 z-10 bg-surface">
-            <tr className="text-left text-xs font-bold text-muted">
-              <th className="px-5 py-3">Campanha</th>
-              <th className="px-5 py-3">Gasto</th>
-              <th className="px-5 py-3">Receita</th>
-              <th className="px-5 py-3">Vendas</th>
-              <th className="px-5 py-3">ROAS</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.name} className="border-t border-line">
-                <td className="px-5 py-3 font-bold text-fg">{r.name}</td>
-                <td className="px-5 py-3 text-fg">{brl(r.spend)}</td>
-                <td className="px-5 py-3 text-fg">{brl(r.revenue)}</td>
-                <td className="px-5 py-3 text-fg">{num(r.sales)}</td>
-                <td className="px-5 py-3">
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-bold ${
-                      r.roas >= 1
-                        ? "bg-positive/10 text-positive"
-                        : "bg-negative/10 text-negative"
-                    }`}
-                  >
-                    {r.roas.toFixed(2)}x
-                  </span>
-                </td>
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 z-10 bg-surface">
+              <tr className="text-left text-xs font-bold text-muted">
+                <th className="px-5 py-3">Campanha</th>
+                <MetricHeaders />
+                <th className="px-4 py-3">Cliques no link</th>
+                <th className="px-4 py-3">Views</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map((r) => {
+                const m = derive(r);
+                return (
+                  <tr key={r.name} className="border-t border-line">
+                    <td className="px-5 py-3">
+                      <span className="block max-w-[220px] truncate font-bold text-fg">
+                        {r.name}
+                      </span>
+                    </td>
+                    <MetricCells m={m} />
+                    <td className="whitespace-nowrap px-4 py-3 text-fg">{num(r.link_clicks)}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-fg">{num(r.lpv)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         )}
       </div>
     </div>
@@ -817,6 +926,22 @@ function EyeMetricIcon() {
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" />
     </svg>
+  );
+}
+function FireIcon() {
+  return (
+    <span title="Mais cliques e visualizações" className="shrink-0 leading-none">
+      <svg width="18" height="18" viewBox="0 0 24 24">
+        <path
+          fill="#f97316"
+          d="M12 23c-4.4 0-8-3.2-8-7.4 0-2.7 1.4-5 2.9-6.7C8.2 7.3 9.7 5.4 9.2 2c3.1 1.4 5.3 4.1 5.3 6.6 0 .9-.2 1.7-.6 2.4.8-.4 1.4-1.2 1.7-2.2 1.9 1.6 3.4 4 3.4 6.8C19 19.8 16.4 23 12 23z"
+        />
+        <path
+          fill="#fbbf24"
+          d="M12 20.6c-2.1 0-3.8-1.5-3.8-3.6 0-1.6 1.1-2.9 2-3.9.2 1 .8 1.7 1.6 2-.4-1.7.3-3.4 1.4-4.4 1.1 1.1 2.4 2.7 2.4 4.6 0 2.6-1.6 5.3-3.6 5.3z"
+        />
+      </svg>
+    </span>
   );
 }
 function CashIcon() {

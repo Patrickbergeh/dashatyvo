@@ -1,6 +1,12 @@
 "use client";
 
-export type FunnelSegment = { label: string; value: string };
+import { AnimatedNumber } from "@/components/animated-number";
+
+export type FunnelSegment = {
+  label: string;
+  value: number;
+  format: (n: number) => string;
+};
 
 // Funil de gomos arredondados, ligados por um tubo central que desce
 // e encosta no gomo de baixo. Verde (#e0ff92) -> cinza bem claro.
@@ -38,7 +44,9 @@ export function FunnelChart({ segments }: { segments: FunnelSegment[] }) {
           >
             <div className="px-3 text-center leading-tight text-black">
               <div className="text-[11px] font-bold opacity-80">{s.label}</div>
-              <div className="text-base font-bold">{s.value}</div>
+              <div className="text-base font-bold">
+                <AnimatedNumber value={s.value} format={s.format} />
+              </div>
             </div>
           </div>
 

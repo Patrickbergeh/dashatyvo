@@ -11,7 +11,7 @@ export function KpiCard({
   badge,
 }: {
   label: string;
-  value: string;
+  value: ReactNode;
   hint?: string;
   trend?: number | null;
   icon: ReactNode;
