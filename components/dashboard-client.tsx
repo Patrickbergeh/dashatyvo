@@ -120,6 +120,12 @@ export function DashboardClient({ email }: { email: string }) {
     ad: boolean;
   }>({ adset: false, ad: false });
 
+  // Alcance DEDUPLICADO do período (a Meta calcula; não dá pra somar por dia)
+  const [reachData, setReachData] = useState<{
+    total: number;
+    byId: Record<string, number>;
+  } | null>(null);
+
   const funnel = level === "campaign" ? [] : funnelCache[level];
 
   const loadMetrics = useCallback(async () => {
@@ -173,6 +179,22 @@ export function DashboardClient({ email }: { email: string }) {
       }
     })();
   }, []);
+
+  // Puxa o alcance real (deduplicado) do período/nível direto da Meta
+  useEffect(() => {
+    const qs = new URLSearchParams({ level });
+    if (range.start) qs.set("since", range.start);
+    if (range.end) qs.set("until", range.end);
+    (async () => {
+      try {
+        const res = await fetch(`/api/reach?${qs.toString()}`, { cache: "no-store" });
+        const j = await res.json();
+        if (res.ok) setReachData({ total: Number(j.total ?? 0), byId: j.byId ?? {} });
+      } catch {
+        /* mantém o anterior */
+      }
+    })();
+  }, [level, range]);
 
   const filtered = useMemo(() => {
     return metrics.filter((m) => {
@@ -300,38 +322,49 @@ export function DashboardClient({ email }: { email: string }) {
 
   // KPIs exibidos conforme o nível selecionado
   const view = useMemo(() => {
-    if (level === "campaign") return k;
-    const t = funnel
-      .filter((e) => e.is_tracked)
-      .reduce(
-        (a, e) => ({
-          spend: a.spend + Number(e.spend),
-          clicks: a.clicks + Number(e.clicks),
-          impressions: a.impressions + Number(e.impressions),
-          reach: a.reach + Number(e.reach),
-          link_clicks: a.link_clicks + Number(e.link_clicks),
-          lpv: a.lpv + Number(e.lpv),
-          initiate_checkout: a.initiate_checkout + Number(e.initiate_checkout),
-        }),
-        { spend: 0, clicks: 0, impressions: 0, reach: 0, link_clicks: 0, lpv: 0, initiate_checkout: 0 }
-      );
-    const sales = green.count;
-    const revenue = green.revenue;
+    let b;
+    if (level === "campaign") {
+      b = k;
+    } else {
+      const t = funnel
+        .filter((e) => e.is_tracked)
+        .reduce(
+          (a, e) => ({
+            spend: a.spend + Number(e.spend),
+            clicks: a.clicks + Number(e.clicks),
+            impressions: a.impressions + Number(e.impressions),
+            reach: a.reach + Number(e.reach),
+            link_clicks: a.link_clicks + Number(e.link_clicks),
+            lpv: a.lpv + Number(e.lpv),
+            initiate_checkout: a.initiate_checkout + Number(e.initiate_checkout),
+          }),
+          { spend: 0, clicks: 0, impressions: 0, reach: 0, link_clicks: 0, lpv: 0, initiate_checkout: 0 }
+        );
+      const sales = green.count;
+      const revenue = green.revenue;
+      b = {
+        ...t,
+        sales,
+        revenue,
+        roas: t.spend > 0 ? revenue / t.spend : 0,
+        cpc: t.link_clicks > 0 ? t.spend / t.link_clicks : 0,
+        cpa: sales > 0 ? t.spend / sales : 0,
+        cpm: t.impressions > 0 ? (t.spend / t.impressions) * 1000 : 0,
+        ctr: t.impressions > 0 ? (t.clicks / t.impressions) * 100 : 0,
+        frequency: t.reach > 0 ? t.impressions / t.reach : 0,
+        connectRate: t.link_clicks > 0 ? (t.lpv / t.link_clicks) * 100 : 0,
+        cpv: t.lpv > 0 ? t.spend / t.lpv : 0,
+        conv: t.lpv > 0 ? (sales / t.lpv) * 100 : 0,
+      };
+    }
+    // alcance deduplicado real (sobrescreve a soma diária) + frequência correta
+    const reach = reachData ? reachData.total : b.reach;
     return {
-      ...t,
-      sales,
-      revenue,
-      roas: t.spend > 0 ? revenue / t.spend : 0,
-      cpc: t.link_clicks > 0 ? t.spend / t.link_clicks : 0,
-      cpa: sales > 0 ? t.spend / sales : 0,
-      cpm: t.impressions > 0 ? (t.spend / t.impressions) * 1000 : 0,
-      ctr: t.impressions > 0 ? (t.clicks / t.impressions) * 100 : 0,
-      frequency: t.reach > 0 ? t.impressions / t.reach : 0,
-      connectRate: t.link_clicks > 0 ? (t.lpv / t.link_clicks) * 100 : 0,
-      cpv: t.lpv > 0 ? t.spend / t.lpv : 0,
-      conv: t.lpv > 0 ? (sales / t.lpv) * 100 : 0,
+      ...b,
+      reach,
+      frequency: reach > 0 ? b.impressions / reach : 0,
     };
-  }, [level, k, funnel, green]);
+  }, [level, k, funnel, green, reachData]);
 
   // Conversão bruta x líquida.
   // Líquida = venda bruta − taxa da Green − valor gasto COM impostos da Meta.
