@@ -724,6 +724,26 @@ function MetricCells({ m }: { m: ReturnType<typeof derive> }) {
   );
 }
 
+// Eficiência do anúncio (diagnóstico de relevância da Meta)
+function EffBadge({ value }: { value?: string | null }) {
+  if (!value || value === "UNKNOWN")
+    return <span className="text-xs font-bold text-muted">—</span>;
+  let label = "Abaixo da média";
+  let cls = "bg-negative/10 text-negative";
+  if (value === "above_average") {
+    label = "Acima da média";
+    cls = "bg-positive/10 text-positive";
+  } else if (value === "average") {
+    label = "Na média";
+    cls = "bg-muted/15 text-fg";
+  }
+  return (
+    <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-bold ${cls}`}>
+      {label}
+    </span>
+  );
+}
+
 function FunnelTable({
   level,
   entities,
@@ -757,6 +777,7 @@ function FunnelTable({
           <thead className="sticky top-0 z-10 bg-surface">
             <tr className="text-left text-xs font-bold text-muted">
               <th className="px-5 py-3">{level === "adset" ? "Conjunto" : "Anúncio"}</th>
+              {level === "ad" && <th className="px-4 py-3">Eficiência</th>}
               <MetricHeaders />
               <th className="px-4 py-3">Cliques no link</th>
               <th className="px-4 py-3">Views</th>
@@ -781,6 +802,11 @@ function FunnelTable({
                       {e.entity_id === topId && <FireIcon />}
                     </div>
                   </td>
+                  {level === "ad" && (
+                    <td className="px-4 py-3">
+                      <EffBadge value={e.quality_ranking} />
+                    </td>
+                  )}
                   <MetricCells m={m} />
                   <td className="whitespace-nowrap px-4 py-3 text-fg">{num(e.link_clicks)}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-fg">{num(e.lpv)}</td>

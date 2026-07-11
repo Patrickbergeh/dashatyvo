@@ -10,6 +10,9 @@ export type FunnelEntity = {
   parent_id: string;
   thumbnail_url: string | null;
   image_url: string | null;
+  quality_ranking?: string | null;
+  engagement_rate_ranking?: string | null;
+  conversion_rate_ranking?: string | null;
   spend: number;
   impressions: number;
   reach: number;

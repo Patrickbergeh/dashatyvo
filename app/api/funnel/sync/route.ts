@@ -188,6 +188,25 @@ export async function POST(req: Request) {
           .upsert(rows.slice(i, i + 500), { onConflict: "user_id,ad_id,date" });
       }
       adRows += rows.length;
+
+      // Eficiência (diagnósticos de relevância) — insights agregado do período
+      const eff = (
+        await fetchAll(
+          `${GRAPH}/${acct}/insights?level=ad&${tr}&fields=ad_id,campaign_id,quality_ranking,engagement_rate_ranking,conversion_rate_ranking&limit=500&access_token=${token}`
+        )
+      ).filter((r: any) => trackedCamps.has(r.campaign_id));
+      for (let i = 0; i < eff.length; i += 500) {
+        await supabase.from("ad_ads").upsert(
+          eff.slice(i, i + 500).map((r: any) => ({
+            user_id: user.id,
+            ad_id: r.ad_id,
+            quality_ranking: r.quality_ranking ?? null,
+            engagement_rate_ranking: r.engagement_rate_ranking ?? null,
+            conversion_rate_ranking: r.conversion_rate_ranking ?? null,
+          })),
+          { onConflict: "user_id,ad_id" }
+        );
+      }
     } catch {
       /* segue */
     }
