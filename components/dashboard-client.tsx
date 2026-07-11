@@ -498,7 +498,7 @@ export function DashboardClient({ email }: { email: string }) {
 
                 {/* FINANCEIRO */}
                 <SectionTitle>Financeiro</SectionTitle>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <KpiCard label="Conversão bruta" value={brl(conv.gross)} hint="Valor bruto das vendas" icon={<CashIcon />} />
                   <KpiCard
                     label="Conversão líquida"
@@ -514,7 +514,7 @@ export function DashboardClient({ email }: { email: string }) {
 
                 {/* INVESTIMENTO */}
                 <SectionTitle>Investimento</SectionTitle>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <KpiCard label="Valor gasto" value={brl(view.spend)} hint="Investimento total no período" icon={<WalletIcon />} />
                   <KpiCard label="Gasto c/ imposto Meta" value={brl(conv.spendWithTax)} hint={`+ 12,15% de imposto (${brl(conv.metaTax)})`} icon={<WalletIcon />} />
                   <KpiCard label="CPC (link)" value={brl(view.cpc)} hint="Custo por clique no link" icon={<ClickIcon />} />
@@ -523,7 +523,7 @@ export function DashboardClient({ email }: { email: string }) {
 
                 {/* TRÁFEGO */}
                 <SectionTitle>Tráfego</SectionTitle>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <KpiCard label="Impressões" value={num(view.impressions)} hint="Total de exibições" icon={<EyeMetricIcon />} />
                   <KpiCard label="Alcance" value={num(view.reach)} hint="Pessoas alcançadas" icon={<UserIcon />} />
                   <KpiCard label="Frequência" value={view.frequency.toFixed(2)} hint="Impressões ÷ alcance" icon={<PercentIcon />} />
