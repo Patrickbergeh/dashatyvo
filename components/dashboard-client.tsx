@@ -447,7 +447,15 @@ export function DashboardClient({ email }: { email: string }) {
     <div className="flex min-h-screen flex-col bg-bg xl:h-screen xl:overflow-hidden">
       {/* Topo minimalista — sem logo/nome */}
       <header className="sticky top-0 z-20 shrink-0 border-b border-line bg-bg/80 backdrop-blur">
-        <div className="flex w-full items-center justify-between px-6 py-3.5">
+        <div className="grid w-full grid-cols-3 items-center px-6 py-3.5">
+          <div className="justify-self-start">
+            <div className="flex items-center gap-2 rounded-full border border-line bg-surface px-4 py-2">
+              <span className="text-xs font-bold text-muted">Cliente</span>
+              <span className="text-xs font-bold text-fg">Leandro &amp; Carol Mançur</span>
+            </div>
+          </div>
+
+          <div className="relative justify-self-center">
           <Segmented
             options={PRESETS}
             value={preset === "custom" ? null : preset}
@@ -486,8 +494,9 @@ export function DashboardClient({ email }: { email: string }) {
               </>
             }
           />
+          </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 justify-self-end">
             <ThemeToggle />
             <div className="flex items-center gap-2 rounded-full border border-line bg-surface py-1 pl-1 pr-3">
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-xs font-bold text-black">
