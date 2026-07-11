@@ -449,8 +449,8 @@ export function DashboardClient({ email }: { email: string }) {
       <header className="sticky top-0 z-20 shrink-0 border-b border-line bg-bg/80 backdrop-blur">
         <div className="grid w-full grid-cols-3 items-center px-6 py-3.5">
           <div className="flex items-center gap-2 justify-self-start">
-            <span className="text-xs font-bold text-muted">Cliente</span>
-            <span className="text-sm font-bold text-fg">Leandro &amp; Carol Mançur</span>
+            <span className="text-sm font-bold lowercase text-brand">cliente</span>
+            <span className="text-sm font-bold lowercase text-fg">leandro &amp; carol mançur</span>
           </div>
 
           <div className="relative justify-self-center">
