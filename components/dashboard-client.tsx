@@ -567,7 +567,7 @@ export function DashboardClient({ email }: { email: string }) {
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <KpiCard label="Conversão bruta" value={<AnimatedNumber value={conv.gross} format={brl} />} hint="Valor bruto das vendas" icon={<CashIcon />} />
                   <KpiCard
-                    label="Conversão líquida"
+                    label="Lucro real"
                     value={<AnimatedNumber value={conv.net} format={(v) => `${v < 0 ? "−" : ""}${brl(Math.abs(v))}`} />}
                     tone={conv.net >= 0 ? "positive" : "negative"}
                     badge={conv.net >= 0 ? "Lucro" : "Prejuízo"}
