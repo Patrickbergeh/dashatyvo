@@ -28,6 +28,8 @@ export default function LoginPage() {
     if (error) setError(traduz(error.message));
     else {
       await logActivity("Fez login");
+      // e-mail de login (best-effort, não bloqueia)
+      fetch("/api/email/login", { method: "POST" }).catch(() => {});
       router.push("/dashboard");
     }
 
