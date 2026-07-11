@@ -546,7 +546,9 @@ export function DashboardClient({ email }: { email: string }) {
         </div>
 
         <div className="grid grid-cols-1 gap-6 xl:min-h-0 xl:flex-1 xl:grid-cols-[minmax(0,1fr)_440px_340px]">
-          <section className="min-w-0 xl:min-h-0 xl:overflow-y-auto xl:pr-1">
+          <section className="relative min-w-0 xl:min-h-0 xl:overflow-y-auto xl:pr-1">
+            {/* fade no topo: sólido -> transparente ao rolar */}
+            <div className="pointer-events-none sticky top-0 z-10 -mb-12 hidden h-12 bg-gradient-to-b from-bg to-transparent xl:block" />
             {(level === "campaign" ? loading : funnelFirstLoad) ? (
               <SkeletonGrid />
             ) : (
