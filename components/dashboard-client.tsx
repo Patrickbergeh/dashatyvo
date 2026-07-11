@@ -697,38 +697,38 @@ function derive(r: RowRaw) {
 function MetricHeaders() {
   return (
     <>
-      <th className="px-4 py-3">Vendas</th>
-      <th className="px-4 py-3">Lucro real</th>
-      <th className="px-4 py-3">Gasto</th>
-      <th className="px-4 py-3">Impressões</th>
-      <th className="px-4 py-3">Alcance</th>
-      <th className="px-4 py-3">Freq.</th>
-      <th className="px-4 py-3">CTR</th>
-      <th className="px-4 py-3">CPC</th>
-      <th className="px-4 py-3">CPM</th>
-      <th className="px-4 py-3">Custo/view</th>
+      <th className="px-4 py-3 text-right">Vendas</th>
+      <th className="px-4 py-3 text-right">Lucro real</th>
+      <th className="px-4 py-3 text-right">Gasto</th>
+      <th className="px-4 py-3 text-right">Impressões</th>
+      <th className="px-4 py-3 text-right">Alcance</th>
+      <th className="px-4 py-3 text-right">Freq.</th>
+      <th className="px-4 py-3 text-right">CTR</th>
+      <th className="px-4 py-3 text-right">CPC</th>
+      <th className="px-4 py-3 text-right">CPM</th>
+      <th className="px-4 py-3 text-right">Custo/view</th>
     </>
   );
 }
 function MetricCells({ m }: { m: ReturnType<typeof derive> }) {
   return (
     <>
-      <td className="whitespace-nowrap px-4 py-3 text-fg">{num(m.sales)}</td>
+      <td className="whitespace-nowrap px-4 py-3 text-right text-fg">{num(m.sales)}</td>
       <td
-        className={`whitespace-nowrap px-4 py-3 font-bold ${
+        className={`whitespace-nowrap px-4 py-3 text-right font-bold ${
           m.lucro >= 0 ? "text-positive" : "text-negative"
         }`}
       >
         {`${m.lucro < 0 ? "−" : ""}${brl(Math.abs(m.lucro))}`}
       </td>
-      <td className="whitespace-nowrap px-4 py-3 text-fg">{brl(m.spend)}</td>
-      <td className="whitespace-nowrap px-4 py-3 text-fg">{num(m.imp)}</td>
-      <td className="whitespace-nowrap px-4 py-3 text-fg">{num(m.reach)}</td>
-      <td className="whitespace-nowrap px-4 py-3 text-fg">{m.freq.toFixed(2)}</td>
-      <td className="whitespace-nowrap px-4 py-3 text-fg">{pct(m.ctr)}</td>
-      <td className="whitespace-nowrap px-4 py-3 text-fg">{brl(m.cpc)}</td>
-      <td className="whitespace-nowrap px-4 py-3 text-fg">{brl(m.cpm)}</td>
-      <td className="whitespace-nowrap px-4 py-3 text-fg">{brl(m.cpv)}</td>
+      <td className="whitespace-nowrap px-4 py-3 text-right text-fg">{brl(m.spend)}</td>
+      <td className="whitespace-nowrap px-4 py-3 text-right text-fg">{num(m.imp)}</td>
+      <td className="whitespace-nowrap px-4 py-3 text-right text-fg">{num(m.reach)}</td>
+      <td className="whitespace-nowrap px-4 py-3 text-right text-fg">{m.freq.toFixed(2)}</td>
+      <td className="whitespace-nowrap px-4 py-3 text-right text-fg">{pct(m.ctr)}</td>
+      <td className="whitespace-nowrap px-4 py-3 text-right text-fg">{brl(m.cpc)}</td>
+      <td className="whitespace-nowrap px-4 py-3 text-right text-fg">{brl(m.cpm)}</td>
+      <td className="whitespace-nowrap px-4 py-3 text-right text-fg">{brl(m.cpv)}</td>
     </>
   );
 }
@@ -788,8 +788,8 @@ function FunnelTable({
               <th className="px-5 py-3">{level === "adset" ? "Conjunto" : "Anúncio"}</th>
               {level === "ad" && <th className="px-4 py-3">Eficiência</th>}
               <MetricHeaders />
-              <th className="px-4 py-3">Cliques no link</th>
-              <th className="px-4 py-3">Views</th>
+              <th className="px-4 py-3 text-right">Cliques no link</th>
+              <th className="px-4 py-3 text-right">Views</th>
             </tr>
           </thead>
           <tbody>
@@ -817,8 +817,8 @@ function FunnelTable({
                     </td>
                   )}
                   <MetricCells m={m} />
-                  <td className="whitespace-nowrap px-4 py-3 text-fg">{num(e.link_clicks)}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-fg">{num(e.lpv)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right text-fg">{num(e.link_clicks)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right text-fg">{num(e.lpv)}</td>
                 </tr>
               );
             })}
@@ -878,8 +878,8 @@ function CampaignTable({ metrics }: { metrics: Metric[] }) {
               <tr className="text-left text-xs font-bold text-muted">
                 <th className="px-5 py-3">Campanha</th>
                 <MetricHeaders />
-                <th className="px-4 py-3">Cliques no link</th>
-                <th className="px-4 py-3">Views</th>
+                <th className="px-4 py-3 text-right">Cliques no link</th>
+                <th className="px-4 py-3 text-right">Views</th>
               </tr>
             </thead>
             <tbody>
@@ -893,8 +893,8 @@ function CampaignTable({ metrics }: { metrics: Metric[] }) {
                       </span>
                     </td>
                     <MetricCells m={m} />
-                    <td className="whitespace-nowrap px-4 py-3 text-fg">{num(r.link_clicks)}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-fg">{num(r.lpv)}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right text-fg">{num(r.link_clicks)}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right text-fg">{num(r.lpv)}</td>
                   </tr>
                 );
               })}
