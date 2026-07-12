@@ -179,22 +179,40 @@ export function DashboardClient({ email }: { email: string }) {
     loadMetrics();
   }, [loadMetrics]);
 
-  // Atualiza o banco (conjuntos/anúncios) em 2º plano; a EXIBIÇÃO vem do banco.
-  // Assim clicar em Conjunto/Anúncio é instantâneo (lê do banco), e a Meta só
-  // valida/atualiza por baixo.
+  // Ao ABRIR e a cada 2 min enquanto aberta: puxa AO VIVO da Meta pro banco
+  // (campanhas + conjuntos + anúncios) e recarrega os KPIs. Assim quem está com a
+  // plataforma aberta vê os números atuais; o cron de 15min só cobre quando
+  // ninguém está olhando.
   useEffect(() => {
-    (async () => {
+    let alive = true;
+    const syncLive = async () => {
       try {
-        await fetch("/api/funnel/sync", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ days: 30 }),
-        });
-        setFunnelFetched({ adset: false, ad: false }); // re-lê do banco atualizado
+        await Promise.all([
+          fetch("/api/campaigns/sync", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ days: 30 }),
+          }),
+          fetch("/api/funnel/sync", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ days: 30 }),
+          }),
+        ]);
+        if (!alive) return;
+        await loadMetrics(); // re-lê os KPIs do banco já atualizado
+        setFunnelFetched({ adset: false, ad: false }); // re-lê conjuntos/anúncios
       } catch {
-        /* silencioso */
+        /* silencioso — segue com o que já está no banco */
       }
-    })();
+    };
+    syncLive();
+    const id = setInterval(syncLive, 120_000); // 2 min
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Puxa o alcance real (deduplicado) do período/nível direto da Meta
