@@ -127,6 +127,50 @@ export function DashboardClient({ email }: { email: string }) {
       /* ignora */
     }
   }, []);
+
+  // Restaura o filtro de data salvo ao carregar a página
+  useEffect(() => {
+    const p = localStorage.getItem("dash_preset") as Preset | null;
+    if (!p) return;
+    if (p === "custom") {
+      try {
+        const r = JSON.parse(localStorage.getItem("dash_range") ?? "null");
+        if (r?.start) {
+          setPreset("custom");
+          setRange(r);
+        }
+      } catch {
+        /* ignora */
+      }
+    } else if (PRESETS.some(([k]) => k === p)) {
+      setPreset(p);
+      setRange(presetRange(p)); // recalcula (ex.: "hoje" = dia atual)
+    }
+  }, []);
+
+  // Aplica um preset e persiste (só em ação do usuário)
+  const applyPreset = useCallback((k: Preset) => {
+    setPreset(k);
+    setRange(presetRange(k));
+    try {
+      localStorage.setItem("dash_preset", k);
+      localStorage.removeItem("dash_range");
+    } catch {
+      /* ignora */
+    }
+  }, []);
+
+  // Aplica um intervalo personalizado e persiste
+  const applyCustomRange = useCallback((r: Range) => {
+    setRange(r);
+    setPreset("custom");
+    try {
+      localStorage.setItem("dash_preset", "custom");
+      localStorage.setItem("dash_range", JSON.stringify(r));
+    } catch {
+      /* ignora */
+    }
+  }, []);
   // cache por nível: troca instantânea, atualiza em segundo plano (sem piscar)
   const [funnelCache, setFunnelCache] = useState<{
     adset: FunnelEntity[];
@@ -476,8 +520,7 @@ export function DashboardClient({ email }: { email: string }) {
             options={PRESETS}
             value={preset === "custom" ? null : preset}
             onChange={(k) => {
-              setPreset(k);
-              setRange(presetRange(k));
+              applyPreset(k);
               setShowPicker(false);
             }}
             extra={
@@ -500,8 +543,7 @@ export function DashboardClient({ email }: { email: string }) {
                   <DateRangePicker
                     value={range.start ? range : presetRange("30d")}
                     onApply={(r) => {
-                      setRange(r);
-                      setPreset("custom");
+                      applyCustomRange(r);
                       setShowPicker(false);
                     }}
                     onClose={() => setShowPicker(false)}
